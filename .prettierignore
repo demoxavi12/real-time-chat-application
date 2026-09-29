@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-e2e
+e2e-logs
+coverage
+playwright-report
+test-results
+blob-report
+package-lock.json

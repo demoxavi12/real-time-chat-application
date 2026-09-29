@@ -3,25 +3,37 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+  "workspaces": [
+    "apps/client",
+    "apps/server"
+  ],
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
   },
-  "dependencies": {
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+  "scripts": {
+    "dev": "concurrently --names server,client --prefix-colors blue,magenta \"npm run dev -w apps/server\" \"npm run dev -w apps/client\"",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "npm run test:unit -w apps/server && npm run test -w apps/client",
+    "test:integration": "npm run test:integration -w apps/server",
+    "test:e2e": "playwright test",
+    "build": "npm run build -w apps/client",
+    "security": "npm run security:audit && npm run security:secrets",
+    "security:audit": "npm audit --audit-level=high",
+    "security:secrets": "node scripts/check-secrets.js",
+    "verify": "node scripts/verify.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.1.0",
-    "eslint": "^10.9.0",
+    "@playwright/test": "^1.63.0",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.4",
-    "globals": "^17.11.0",
-    "vite": "^8.2.2"
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.12.0",
+    "mongodb-memory-server": "^11.3.0",
+    "prettier": "^3.9.9"
   }
 }
