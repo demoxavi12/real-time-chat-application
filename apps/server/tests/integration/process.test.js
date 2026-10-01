@@ -3,7 +3,12 @@ import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, inject, it } from 'vitest'
-import { TEST_ORIGIN, uniqueDbName, withDatabase } from '../helpers/testEnv.js'
+import {
+  TEST_ORIGIN,
+  testJwtSecret,
+  uniqueDbName,
+  withDatabase,
+} from '../helpers/testEnv.js'
 
 // Startup smoke tests: run the real entry point as a child process, exactly
 // as `npm start` would, instead of checking by hand that the backend boots.
@@ -69,6 +74,7 @@ describe('server process', () => {
       LOG_LEVEL: 'info',
       MONGODB_URI: withDatabase(inject('mongoUri'), uniqueDbName('proc')),
       CLIENT_ORIGIN: TEST_ORIGIN,
+      JWT_SECRET: testJwtSecret,
     })
 
     const res = await waitForReady(`http://127.0.0.1:${port}/ready`, exited)
@@ -101,6 +107,7 @@ describe('server process', () => {
         LOG_LEVEL: 'info',
         MONGODB_URI: withDatabase(inject('mongoUri'), uniqueDbName('proc')),
         CLIENT_ORIGIN: TEST_ORIGIN,
+        JWT_SECRET: testJwtSecret,
       })
       await waitForReady(`http://127.0.0.1:${port}/ready`, exited)
 
@@ -123,6 +130,7 @@ describe('server process', () => {
       NODE_ENV: 'test',
       MONGODB_URI: 'mongodb+srv://user:hunter2@prod.example.net/chat', // secret-scan:allow (fake fixture)
       CLIENT_ORIGIN: TEST_ORIGIN,
+      JWT_SECRET: testJwtSecret,
     })
     await expect(exited).resolves.toEqual({ code: 1, signal: null })
     expect(output.stderr).toContain('must point at a loopback host')
@@ -136,6 +144,7 @@ describe('server process', () => {
       LOG_LEVEL: 'error',
       MONGODB_URI: `mongodb://127.0.0.1:${port}/unreachable_test`,
       CLIENT_ORIGIN: TEST_ORIGIN,
+      JWT_SECRET: testJwtSecret,
     })
     await expect(exited).resolves.toEqual({ code: 1, signal: null })
     expect(output.stdout).toContain('startup failed')

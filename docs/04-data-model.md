@@ -19,6 +19,42 @@ Constraints:
 - Password is never stored in plaintext.
 - Never return passwordHash from normal API responses.
 
+**Implemented (Phase 1)** — `apps/server/src/models/user.model.js`, collection
+`users`:
+
+| Field                    | Type         | Notes                                                      |
+| ------------------------ | ------------ | ---------------------------------------------------------- |
+| `_id`                    | ObjectId     | Server-generated; exposed as `id`                          |
+| `name`                   | String       | Required, trimmed, ≤ 50                                    |
+| `email`                  | String       | Required, trimmed + lower-cased by the model setter, ≤ 254 |
+| `passwordHash`           | String       | Argon2id PHC string; `select: false`                       |
+| `lastSeenAt`             | Date \| null | Set on registration and login (presence updates it later)  |
+| `createdAt`, `updatedAt` | Date         | Mongoose timestamps                                        |
+
+- `avatarUrl` is not implemented (not needed yet).
+- Indexes: `email_unique` (`{ email: 1 }`, unique). Created explicitly at
+  startup (`ensureIndexes`), not via background autoIndex; concurrent
+  duplicate registrations produce exactly one user (tested).
+- Schema is `strict: 'throw'`: unknown fields are an error, not silently
+  dropped.
+- Public representation (`toPublicUser`): `{ id, name, email, createdAt }`
+  only.
+
+## RevokedSession (implemented — Phase 1)
+
+Server-side logout denylist, collection `revokedsessions`:
+
+```text
+_id
+sessionId   (the JWT `sid` claim)
+expiresAt   (end of the session's absolute lifetime)
+createdAt
+```
+
+Indexes: `sessionId_unique` (unique) and `expiresAt_ttl`
+(`expireAfterSeconds: 0`), so MongoDB deletes entries once the session could
+no longer be valid anyway. Queries are by `sessionId` only.
+
 ## Conversation
 
 ```text

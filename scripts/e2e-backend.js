@@ -4,6 +4,7 @@
  * and terminates it when the run finishes. No developer database or .env file
  * is ever used. Backend logs go to e2e-logs/backend.log (uploaded by CI).
  */
+import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import { loadConfig } from '../apps/server/src/config/env.js'
@@ -26,6 +27,12 @@ try {
     MONGODB_URI: mongo.getUri('realtime_chat_e2e'),
     CLIENT_ORIGIN: clientOrigin,
     LOG_LEVEL: 'info',
+    // Fresh signing key per run: nothing secret is stored anywhere.
+    JWT_SECRET: randomBytes(48).toString('hex'),
+    // Every E2E user signs up from 127.0.0.1; rate limiting itself is covered
+    // by the server integration tests.
+    RATE_LIMIT_MAX: '10000',
+    AUTH_RATE_LIMIT_MAX: '10000',
   })
   server = await startServer({
     config,

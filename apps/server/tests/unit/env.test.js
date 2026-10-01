@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
   ConfigError,
@@ -5,9 +6,12 @@ import {
   parseMongoHosts,
 } from '../../src/config/env.js'
 
+const jwtSecret = randomBytes(48).toString('hex')
+
 const validEnv = {
   MONGODB_URI: 'mongodb://localhost:27017/realtime_chat',
   CLIENT_ORIGIN: 'http://localhost:5173',
+  JWT_SECRET: jwtSecret,
 }
 
 function configError(env) {
@@ -31,8 +35,17 @@ describe('loadConfig', () => {
       clientOrigins: ['http://localhost:5173'],
       logLevel: 'info',
       rateLimit: { windowMs: 900_000, max: 300 },
+      auth: {
+        jwtSecret,
+        tokenTtlMs: 3_600_000,
+        sessionMaxAgeMs: 604_800_000,
+        cookieSecure: false,
+        cookieSameSite: 'lax',
+        rateLimit: { windowMs: 900_000, max: 10 },
+      },
     })
     expect(Object.isFrozen(config)).toBe(true)
+    expect(Object.isFrozen(config.auth)).toBe(true)
   })
 
   it('parses explicit values', () => {
@@ -68,15 +81,21 @@ describe('loadConfig', () => {
     expect(error.issues).toEqual([
       'MONGODB_URI: is required',
       'CLIENT_ORIGIN: is required',
+      'JWT_SECRET: is required',
     ])
     expect(error.message).toContain('Invalid environment configuration')
   })
 
   it('treats blank values as missing', () => {
-    const error = configError({ MONGODB_URI: '   ', CLIENT_ORIGIN: '' })
+    const error = configError({
+      MONGODB_URI: '   ',
+      CLIENT_ORIGIN: '',
+      JWT_SECRET: ' ',
+    })
     expect(error.issues).toEqual([
       'MONGODB_URI: is required',
       'CLIENT_ORIGIN: is required',
+      'JWT_SECRET: is required',
     ])
   })
 

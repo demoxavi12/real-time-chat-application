@@ -6,6 +6,8 @@ import { notFound } from './middleware/notFound.js'
 import { createRateLimiter } from './middleware/rateLimiter.js'
 import { requestId } from './middleware/requestId.js'
 import { requestLogger } from './middleware/requestLogger.js'
+import { requireAllowedOrigin } from './middleware/requireAllowedOrigin.js'
+import { createAuthRouter } from './routes/auth.routes.js'
 import { createHealthRouter } from './routes/health.routes.js'
 
 export const JSON_BODY_LIMIT = '100kb'
@@ -13,8 +15,10 @@ export const JSON_BODY_LIMIT = '100kb'
 /**
  * Builds the Express application. Pure construction: no network or database
  * side effects, so it can be tested with injected dependencies.
+ *
+ * `auth` = { authService, authCookie, authenticate } (see server.js).
  */
-export function createApp({ config, logger, readiness }) {
+export function createApp({ config, logger, readiness, auth }) {
   const app = express()
   app.disable('x-powered-by')
 
@@ -31,8 +35,14 @@ export function createApp({ config, logger, readiness }) {
 
   const api = express.Router()
   api.use(healthRouter)
+  api.use(requireAllowedOrigin(config.clientOrigins))
   api.use(createRateLimiter(config.rateLimit))
-  // Feature routers (auth, users, conversations, messages) mount here.
+  api.use(
+    '/auth',
+    createAuthRouter({ ...auth, rateLimit: config.auth.rateLimit }),
+  )
+  // Phase 2+: protected routers mount here as
+  //   api.use('/x', auth.authenticate, authorize(policy), router)
   app.use('/api', api)
 
   app.use(notFound)

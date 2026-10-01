@@ -1,0 +1,29 @@
+import { toPublicUser } from '../models/user.model.js'
+import { sendSuccess } from '../utils/response.js'
+
+export function createAuthController({ authService, authCookie }) {
+  return {
+    async register(req, res) {
+      const session = await authService.register(req.validated.body)
+      authCookie.set(res, session.token, session.expiresAt)
+      sendSuccess(res, { user: toPublicUser(session.user) }, 201)
+    },
+
+    async login(req, res) {
+      const session = await authService.login(req.validated.body)
+      authCookie.set(res, session.token, session.expiresAt)
+      sendSuccess(res, { user: toPublicUser(session.user) })
+    },
+
+    me(req, res) {
+      sendSuccess(res, { user: toPublicUser(req.auth.user) })
+    },
+
+    /** Idempotent: revokes the session if one is presented, always clears. */
+    async logout(req, res) {
+      await authService.logout(authCookie.read(req.headers.cookie))
+      authCookie.clear(res)
+      sendSuccess(res, { loggedOut: true })
+    },
+  }
+}

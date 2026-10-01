@@ -2,13 +2,20 @@ import request from 'supertest'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
 import { createReadinessService } from '../../src/services/readiness.service.js'
-import { silentLogger, TEST_ORIGIN, testConfig } from '../helpers/testEnv.js'
+import {
+  silentLogger,
+  TEST_ORIGIN,
+  testConfig,
+  unusedAuth,
+} from '../helpers/testEnv.js'
 
 function buildApp({ checks = { database: async () => {} }, config } = {}) {
+  const appConfig = config ?? testConfig()
   return createApp({
-    config: config ?? testConfig(),
+    config: appConfig,
     logger: silentLogger,
     readiness: createReadinessService(checks, { timeoutMs: 50 }),
+    auth: unusedAuth(appConfig),
   })
 }
 

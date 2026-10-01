@@ -3,27 +3,41 @@
 A full-stack real-time messaging platform built with React, Node.js,
 Express.js, MongoDB, Socket.IO and JWT.
 
-> **Status: Phase 0 — project foundation.** The architecture, tooling, test
-> infrastructure and quality gates are in place. **No chat functionality exists
-> yet**: there is no registration/login, no users, conversations or messages,
-> and no chat UI. See the [roadmap](#roadmap).
+> **Status: Phase 1 — authentication complete.** Users can register, sign in,
+> stay signed in across reloads and sign out. **No chat functionality exists
+> yet**: there are no conversations, messages, presence, typing indicators or
+> chat UI. See the [roadmap](#roadmap).
 
 ## What exists today
 
+- **Authentication** (Phase 1)
+  - `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`,
+    `POST /api/auth/logout`
+  - Argon2id password hashing; generic login errors with equalized timing
+  - JWT session in an **HttpOnly, SameSite** cookie (Secure in production);
+    the token is never exposed to JavaScript
+  - sliding sessions (idle timeout + absolute maximum) and **server-side
+    revocation on logout**
+  - reusable `authenticate` and `authorize(policy)` middleware; identity always
+    comes from the verified session, never from request data
+  - CSRF defence (SameSite + Origin check), stricter rate limits on login and
+    registration
+  - Socket.IO handshake authentication with the same session (no chat events)
+  - login, registration and protected app shell in the React client
 - **Backend** (`apps/server`): Express 5 + Socket.IO 4 + Mongoose 9
   - validated environment configuration that fails fast with clear messages
-  - MongoDB connection abstraction with graceful shutdown
+  - MongoDB connection abstraction with graceful shutdown; indexes ensured at startup
   - `GET /health` (liveness) and `GET /ready` (live MongoDB ping), also under `/api`
   - Helmet security headers, CORS allow-list, 100 KB body limit, per-IP API rate limiting
   - standard `{ success, data | error }` envelope, centralized error handling
     (no stack traces or internal messages in responses), zod request validation
-  - Socket.IO server with a handshake-middleware boundary, a handler registry,
+  - Socket.IO server with authenticated handshakes, a handler registry,
     centralized event error handling and graceful shutdown — **no chat events yet**
   - structured JSON logging with automatic redaction of secrets
-- **Frontend** (`apps/client`): React 19 + Vite 8
+- **Frontend** (`apps/client`): React 19 + Vite 8 + React Router
   - validated `VITE_*` configuration (defaults to same-origin)
   - REST client boundary (envelope-aware) and Socket.IO client boundary (not connected yet)
-  - a system status page showing live backend and database status
+  - routes: `/` (protected), `/login`, `/register`, `/status` (public system status)
 - **Automation**: Prettier, ESLint, Vitest (unit, integration, Socket.IO),
   Playwright E2E, npm audit, secret scan, `npm run verify`, GitHub Actions CI
 
@@ -62,22 +76,34 @@ This one-time step downloads the browser used by the E2E tests.
 cp .env.example .env
 ```
 
-Then edit `.env` and set `MONGODB_URI` to your development database.
+Then edit `.env`: set `MONGODB_URI` to your development database and replace
+`JWT_SECRET` with a random value. The server refuses to start with the
+placeholder. You can generate a value with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
 
 ## Environment variables
 
-| Variable                       | Used by | Required     | Default                     |
-| ------------------------------ | ------- | ------------ | --------------------------- |
-| `NODE_ENV`                     | server  | no           | `development`               |
-| `PORT`                         | server  | no           | `5000`                      |
-| `MONGODB_URI`                  | server  | **yes**      | —                           |
-| `CLIENT_ORIGIN`                | server  | **yes**      | — (comma-separated origins) |
-| `LOG_LEVEL`                    | server  | no           | `info`                      |
-| `RATE_LIMIT_WINDOW_MS`         | server  | no           | `900000`                    |
-| `RATE_LIMIT_MAX`               | server  | no           | `300`                       |
-| `JWT_SECRET`, `JWT_EXPIRES_IN` | server  | from Phase 1 | not read yet                |
-| `VITE_API_URL`                 | client  | no           | `/api` (same origin)        |
-| `VITE_SOCKET_URL`              | client  | no           | same origin                 |
+| Variable                    | Used by | Required | Default                     |
+| --------------------------- | ------- | -------- | --------------------------- |
+| `NODE_ENV`                  | server  | no       | `development`               |
+| `PORT`                      | server  | no       | `5000`                      |
+| `MONGODB_URI`               | server  | **yes**  | —                           |
+| `CLIENT_ORIGIN`             | server  | **yes**  | — (comma-separated origins) |
+| `LOG_LEVEL`                 | server  | no       | `info`                      |
+| `RATE_LIMIT_WINDOW_MS`      | server  | no       | `900000`                    |
+| `RATE_LIMIT_MAX`            | server  | no       | `300`                       |
+| `JWT_SECRET`                | server  | **yes**  | — (≥ 32 characters)         |
+| `JWT_EXPIRES_IN`            | server  | no       | `1h` (idle timeout)         |
+| `SESSION_MAX_AGE`           | server  | no       | `7d`                        |
+| `AUTH_COOKIE_SECURE`        | server  | no       | `true` in production        |
+| `AUTH_COOKIE_SAMESITE`      | server  | no       | `lax`                       |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | server  | no       | `900000`                    |
+| `AUTH_RATE_LIMIT_MAX`       | server  | no       | `10`                        |
+| `VITE_API_URL`              | client  | no       | `/api` (same origin)        |
+| `VITE_SOCKET_URL`           | client  | no       | same origin                 |
 
 `VITE_*` values are public (embedded in the bundle). Full rules:
 [docs/13-env-and-config.md](docs/13-env-and-config.md).
@@ -90,7 +116,8 @@ npm run dev
 
 This starts the API on `http://localhost:5000` (auto-restart on change) and the
 client on `http://localhost:5173`. The Vite dev server proxies `/api` and
-`/socket.io` to the API. Open the client to see live backend and database status.
+`/socket.io` to the API. Open the client to register or sign in;
+`/status` shows live backend and database status without signing in.
 
 ## Testing
 
@@ -103,6 +130,11 @@ client on `http://localhost:5173`. The Vite dev server proxies `/api` and
 
 No test reads `.env`, and no test database has to be created or cleaned up by
 hand. Under `NODE_ENV=test` the server refuses any non-local MongoDB URI.
+Test users are generated on the reserved `example.test` domain, and JWT
+signing secrets are generated randomly for each run. Authentication is
+covered by unit, API integration, dedicated security tests (forged and edited
+tokens, leakage, CSRF/CORS, rate limits), Socket.IO handshake tests,
+component tests and Playwright E2E.
 Strategy and coverage: [docs/09-testing-strategy.md](docs/09-testing-strategy.md).
 
 ## Verification
@@ -128,19 +160,23 @@ Other scripts: `npm run lint`, `npm run format`, `npm run format:check`,
 ## API and Socket.IO
 
 - REST contract: [docs/05-api-spec.md](docs/05-api-spec.md) (implemented today:
-  health and readiness, error envelope and error codes)
+  health and readiness, authentication, error envelope and error codes)
 - Socket.IO contract: [docs/06-websocket-protocol.md](docs/06-websocket-protocol.md)
-  (implemented today: connection lifecycle and conventions; no events)
+  (implemented today: authenticated connection lifecycle and conventions; no events)
 - Security design: [docs/07-auth-security.md](docs/07-auth-security.md)
+  (the "Implementation" section describes the auth model, cookie threat model
+  and known limitations)
+- Data model: [docs/04-data-model.md](docs/04-data-model.md) (implemented: User,
+  RevokedSession)
 
 ## Roadmap
 
 From [docs/11-implementation-plan.md](docs/11-implementation-plan.md):
 
 - [x] **Phase 0** — Foundation: workspace, tooling, config, database and Socket.IO boundaries, health/readiness, tests, CI, `npm run verify`
-- [ ] **Phase 1** — Authentication: user model, registration/login, JWT
+- [x] **Phase 1** — Authentication: user model, registration/login, JWT cookie sessions with revocation, auth UI, protected routes, Socket.IO handshake auth
 - [ ] **Phase 2** — Conversations and messages (REST, authorization, pagination)
-- [ ] **Phase 3** — Socket.IO: handshake auth, messaging, presence, typing, read state, reconnection
+- [ ] **Phase 3** — Socket.IO: messaging, presence, typing, read state, reconnection
 - [ ] **Phase 4** — Frontend chat UI
 - [ ] **Phase 5** — E2E coverage of chat flows
 - [ ] **Phase 6** — Hardening

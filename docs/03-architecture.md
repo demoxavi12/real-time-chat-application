@@ -144,29 +144,38 @@ root-level tooling (ESLint, Prettier, Playwright, scripts, CI).
 index.js          process entry: loads repo-root .env (not under NODE_ENV=test),
                   validates config, starts server, handles SIGINT/SIGTERM,
                   unhandledRejection/uncaughtException -> graceful shutdown
-server.js         startServer(): connect MongoDB -> build app -> HTTP server
-                  -> Socket.IO -> listen; returns { port, io, database, close() }
+server.js         startServer(): connect MongoDB -> register models + ensure
+                  indexes -> compose auth (token service, auth service, cookie,
+                  authenticate) -> build app -> HTTP server -> Socket.IO (auth
+                  middleware) -> listen; returns { port, io, database, models,
+                  close() }
 app.js            createApp(): pure Express construction (no I/O), testable with
                   injected dependencies
 config/env.js     zod-validated, frozen config; fails with every problem listed
 config/database.js createDatabase(): one Mongoose connection (createConnection),
                   ping() for readiness, disconnect() for shutdown
 middleware/       requestId, requestLogger, validate, rateLimiter, notFound,
-                  errorHandler
-routes/ controllers/ services/   health router -> controller -> readiness service
-sockets/          createSocketServer, bindEvent, handlers/ and middleware/
-                  registries
-validators/       parseWithSchema (shared by HTTP and Socket.IO)
+                  errorHandler, authenticate, authorize, requireAllowedOrigin
+models/           User, RevokedSession schemas; registerModels(connection),
+                  ensureIndexes()
+repositories/     userRepository, revokedSessionRepository (indexed lookups)
+services/         readiness, password (Argon2id), token (JWT), auth (use cases)
+routes/ controllers/   health and auth routers -> controllers -> services
+sockets/          createSocketServer (Origin check), bindEvent, handlers/ and
+                  middleware/ (handshake authentication) registries
+validators/       parseWithSchema (shared by HTTP and Socket.IO), auth schemas
 utils/            AppError + error codes, response envelope, JSON logger with
-                  redaction, withTimeout
+                  redaction, withTimeout, duration parser, auth cookie
 ```
 
-`models/` and `repositories/` are created when the first model arrives
-(Phase 1). Models will be registered on `database.connection`, not on the
-global mongoose singleton (ADR-008).
+Models are registered on `database.connection`, not on the global mongoose
+singleton (ADR-008). Authentication flow and security properties are
+described in `07-auth-security.md` (Implementation section).
 
 Middleware order: request id → request log → Helmet → CORS → JSON body (100 KB)
-→ `/health`, `/ready` → `/api` (probes, then rate limiter, then feature routers)
+→ `/health`, `/ready` → `/api` (probes, then the Origin check for unsafe methods,
+then the rate limiter, then the `/auth` router with its own auth rate limits;
+protected routes use `authenticate` [+ `authorize(policy)`])
 → 404 → central error handler.
 
 Startup is fail-fast: invalid config or an unreachable MongoDB exits with code
@@ -182,15 +191,22 @@ with code 1 after 10 s).
 ```text
 config/              resolveClientConfig(): validated VITE_* URLs (defaults:
                      same-origin /api and same-origin Socket.IO)
-services/api/        createHttpClient (envelope-aware fetch wrapper, ApiError),
-                     systemApi
+services/api/        createHttpClient (envelope-aware fetch wrapper, ApiError,
+                     credentials: include), systemApi, authApi
 services/socket/     createSocketClient (autoConnect: false, bounded backoff)
+features/auth/       AuthProvider + useAuth (status: loading | authenticated |
+                     unauthenticated | error), LoginPage, RegisterPage,
+                     RequireAuth / GuestOnly route guards, validation
 features/system/     SystemStatus + useSystemStatus (backend health/readiness)
-App.jsx              shell rendering the system status page
+pages/HomePage.jsx   protected shell (current user, sign out, system status)
+components/          FormField (accessible labelled input)
+App.jsx              routes: / (protected), /login + /register (guests),
+                     /status (public); main.jsx wraps it in BrowserRouter
 ```
 
-No chat UI exists yet. The socket client is created but never connected
-(it connects only after authentication, from Phase 4).
+The session is restored on load with `GET /api/auth/me`; the token is an
+HttpOnly cookie the client never sees. No chat UI exists yet. The socket
+client is created but never connected (it connects once chat arrives).
 
 ### Logging
 

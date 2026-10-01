@@ -1,7 +1,11 @@
 import { z } from 'zod'
+import { parseDuration } from '../utils/duration.js'
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
 const LOG_LEVELS = ['silent', 'error', 'warn', 'info', 'debug']
+const MIN_JWT_SECRET_LENGTH = 32
+// The value shipped in .env.example must never be used as a real secret.
+const PLACEHOLDER_SECRET = /replace-with|change-?me|placeholder/i
 
 export class ConfigError extends Error {
   constructor(issues) {
@@ -65,6 +69,20 @@ function parseOrigins(value, ctx) {
   return origins
 }
 
+const durationSchema = z
+  .string({ error: 'must be a string' })
+  .transform((value, ctx) => {
+    const ms = parseDuration(value)
+    if (ms === null) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'must be a duration such as 30s, 15m, 1h or 7d',
+      })
+      return z.NEVER
+    }
+    return ms
+  })
+
 const envShape = {
   NODE_ENV: z
     .enum(['development', 'test', 'production'], {
@@ -97,21 +115,84 @@ const envShape = {
     .int('must be an integer')
     .positive('must be positive')
     .default(300),
+  JWT_SECRET: z
+    .string(required('must be a string'))
+    .min(
+      MIN_JWT_SECRET_LENGTH,
+      `must be at least ${MIN_JWT_SECRET_LENGTH} characters`,
+    )
+    .refine(
+      (secret) => !PLACEHOLDER_SECRET.test(secret),
+      'must be replaced with a real random secret (it still holds the example placeholder)',
+    ),
+  JWT_EXPIRES_IN: durationSchema.prefault('1h'),
+  SESSION_MAX_AGE: durationSchema.prefault('7d'),
+  AUTH_COOKIE_SECURE: z
+    .enum(['true', 'false'], { error: 'must be true or false' })
+    .optional(),
+  AUTH_COOKIE_SAMESITE: z
+    .enum(['lax', 'strict', 'none'], {
+      error: 'must be one of lax, strict, none',
+    })
+    .default('lax'),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce
+    .number({ error: 'must be a number' })
+    .int('must be an integer')
+    .positive('must be positive')
+    .default(15 * 60 * 1000),
+  AUTH_RATE_LIMIT_MAX: z.coerce
+    .number({ error: 'must be a number' })
+    .int('must be an integer')
+    .positive('must be positive')
+    .default(10),
+}
+
+function cookieSecure(env) {
+  return env.AUTH_COOKIE_SECURE === undefined
+    ? env.NODE_ENV === 'production'
+    : env.AUTH_COOKIE_SECURE === 'true'
 }
 
 const envSchema = z.object(envShape).superRefine((env, ctx) => {
   // Hard guard: automated tests may only ever talk to a local database.
-  if (env.NODE_ENV !== 'test' || !env.MONGODB_URI) return
-  const hosts = parseMongoHosts(env.MONGODB_URI)
+  if (env.NODE_ENV === 'test' && env.MONGODB_URI) {
+    const hosts = parseMongoHosts(env.MONGODB_URI)
+    if (
+      env.MONGODB_URI.startsWith('mongodb+srv:') ||
+      !hosts?.every((host) => LOOPBACK_HOSTS.has(host))
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['MONGODB_URI'],
+        message:
+          'must point at a loopback host (localhost/127.0.0.1) when NODE_ENV=test',
+      })
+    }
+  }
+
+  if (env.NODE_ENV === 'production' && !cookieSecure(env)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['AUTH_COOKIE_SECURE'],
+      message: 'must not be false in production (cookies must be Secure)',
+    })
+  }
+  if (env.AUTH_COOKIE_SAMESITE === 'none' && !cookieSecure(env)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['AUTH_COOKIE_SAMESITE'],
+      message: 'none requires AUTH_COOKIE_SECURE=true',
+    })
+  }
   if (
-    env.MONGODB_URI.startsWith('mongodb+srv:') ||
-    !hosts?.every((host) => LOOPBACK_HOSTS.has(host))
+    env.JWT_EXPIRES_IN &&
+    env.SESSION_MAX_AGE &&
+    env.SESSION_MAX_AGE < env.JWT_EXPIRES_IN
   ) {
     ctx.addIssue({
       code: 'custom',
-      path: ['MONGODB_URI'],
-      message:
-        'must point at a loopback host (localhost/127.0.0.1) when NODE_ENV=test',
+      path: ['SESSION_MAX_AGE'],
+      message: 'must be greater than or equal to JWT_EXPIRES_IN',
     })
   }
 })
@@ -150,6 +231,17 @@ export function loadConfig(env = process.env) {
     rateLimit: Object.freeze({
       windowMs: parsed.RATE_LIMIT_WINDOW_MS,
       max: parsed.RATE_LIMIT_MAX,
+    }),
+    auth: Object.freeze({
+      jwtSecret: parsed.JWT_SECRET,
+      tokenTtlMs: parsed.JWT_EXPIRES_IN,
+      sessionMaxAgeMs: parsed.SESSION_MAX_AGE,
+      cookieSecure: cookieSecure(parsed),
+      cookieSameSite: parsed.AUTH_COOKIE_SAMESITE,
+      rateLimit: Object.freeze({
+        windowMs: parsed.AUTH_RATE_LIMIT_WINDOW_MS,
+        max: parsed.AUTH_RATE_LIMIT_MAX,
+      }),
     }),
   })
 }

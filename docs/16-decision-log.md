@@ -92,6 +92,60 @@ Record meaningful decisions here.
 
 **Decision:** Not added in Phase 0; the same checks run in `npm run verify` and CI. Revisit with the maintainer's agreement.
 
+## ADR-013 — Argon2id for password hashing
+
+**Status:** Accepted (Phase 1)
+
+**Decision:** `argon2` (native, prebuilt binaries for Windows/Linux/macOS) with Argon2id, m = 19 MiB, t = 2, p = 1 (OWASP baseline). Password policy 8–128 characters, no composition rules. Unknown-email logins verify against a dummy hash to equalize timing.
+
+**Alternatives considered:** bcrypt (72-byte input truncation, not memory-hard); Node `crypto.scrypt` (acceptable, but Argon2id is the documented preference); built-in `crypto.argon2` (requires Node ≥ 24.7, the project supports Node 20/22).
+
+## ADR-014 — JWT session in an HttpOnly cookie (no token in JS)
+
+**Status:** Accepted (Phase 1)
+
+**Decision:** HS256 JWTs signed with `jose`, verification pinned to algorithm, issuer and audience. The token is delivered only as an HttpOnly, SameSite=Lax (configurable), Path=/ cookie; Secure + `__Host-` prefix in production (non-Secure is rejected in production). Never in a response body or Web Storage. CSRF is mitigated by SameSite plus an Origin allow-list check on unsafe `/api` methods; WebSocket hijacking by an Origin check in Socket.IO `allowRequest`. The same cookie authenticates the Socket.IO handshake.
+
+**Consequences:** XSS cannot exfiltrate the token. Client and API must be same-site (true for the Vite proxy, a reverse proxy, or `localhost`/`127.0.0.1` with different ports); otherwise `SameSite=None; Secure` is required. Non-browser clients send the cookie header explicitly; `Authorization: Bearer` is intentionally not supported yet.
+
+**Alternatives considered:** token in `localStorage` + Bearer header (XSS-exfiltratable, rejected by `07-auth-security.md`); opaque server sessions (equivalent here, but the docs specify JWT).
+
+## ADR-015 — Revocable sliding sessions instead of refresh tokens
+
+**Status:** Accepted (Phase 1)
+
+**Context:** `07-auth-security.md` asks for short-lived access tokens and real logout. Pure stateless JWTs cannot be revoked; a refresh-token pair adds a second token, rotation and reuse detection.
+
+**Decision:** One token per request path. Each token carries a session id (`sid`) and sign-in time (`auth_time`). Lifetime `JWT_EXPIRES_IN` (default 1 h) is an idle timeout; past half-life any authenticated request gets a renewed token for the same session, capped at `SESSION_MAX_AGE` (default 7 d). Every authenticated request checks that the user exists and that `sid` is not in the `revokedsessions` denylist (TTL-indexed). Logout revokes the `sid`, invalidating all tokens of that session immediately.
+
+**Consequences:** Two indexed MongoDB lookups per authenticated request (acceptable; also needed to reject deleted users). Socket connections are checked at handshake time; mid-connection revocation handling is Phase 3 work. `.env.example` changed `JWT_EXPIRES_IN` from `15m` to `1h` because it is now an idle timeout rather than an access-token lifetime paired with a refresh token.
+
+## ADR-016 — Authentication rate limits
+
+**Status:** Accepted (Phase 1)
+
+**Decision:** Separate per-IP limiters on `POST /api/auth/register` (every attempt) and `POST /api/auth/login` (`skipSuccessfulRequests`: only failures count), default 10 per 15 minutes, configurable via `AUTH_RATE_LIMIT_*`, on top of the general `/api` limit. No per-account lockout (avoids attacker-triggered lockouts).
+
+**Consequences:** Per-IP limiting requires `trust proxy` configuration before deploying behind a proxy (Phase 6). E2E raises the limits because every test user comes from `127.0.0.1`; rate limiting itself is covered by integration tests.
+
+## ADR-017 — Duplicate registration returns 409
+
+**Status:** Accepted (Phase 1)
+
+**Decision:** `POST /api/auth/register` with an existing email returns `409 EMAIL_ALREADY_EXISTS`, as required by the API contract and phase requirements. This reveals account existence (enumeration); login does not (generic `INVALID_CREDENTIALS`, equal timing). Mitigated by the registration rate limit. Revisit if email verification is introduced (then registration can respond uniformly).
+
+## ADR-018 — `react-router` and an explicit auth state machine on the client
+
+**Status:** Accepted (Phase 1)
+
+**Decision:** `react-router` (v7) for `/`, `/login`, `/register`, `/status`. Auth state lives in a small `AuthProvider` context with `status: loading | authenticated | unauthenticated | error`; the session is restored with `GET /api/auth/me`. `RequireAuth` and `GuestOnly` guards own all auth redirects (including the return to the originally requested page, restricted to same-app paths), which avoids redirect loops and races between page code and guards. The Phase 0 status page moved to the public `/status` route and is also shown in the signed-in shell.
+
+## ADR-019 — Socket.IO servers cannot start without handshake middleware
+
+**Status:** Accepted (Phase 1)
+
+**Decision:** `createSocketServer` requires an explicit `middlewares` array; `startServer` passes the authentication middleware by default. Tests may inject other middlewares, but no code path silently starts an unauthenticated Socket.IO server.
+
 ## Future ADR template
 
 ### ADR-XXX — Title

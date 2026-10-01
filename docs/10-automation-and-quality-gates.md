@@ -29,7 +29,10 @@ not ignored) and fails on: committable `.env*` files (except the two
 templates) or private-key files; private-key blocks, credentialed MongoDB
 URIs, AWS/GitHub/Slack/Google/Stripe/Anthropic/OpenAI key formats, JWTs; and
 `*SECRET*/*PASSWORD*/*TOKEN*/*API_KEY*=value` assignments whose value is not an
-obvious placeholder. It also fails if `.env` is not git-ignored. Findings
+obvious placeholder (in JS/TS files only quoted string literals count, e.g.
+`JWT_SECRET: 'abc…'` or `export const API_TOKEN = "…"`; computed values such
+as `JWT_SECRET: randomBytes(48)` are not secrets). It also fails if `.env` is
+not git-ignored. Findings
 print `file:line` and the rule, never the value. A deliberately fake test
 fixture may be exempted by ending that line with `secret-scan:allow` and a
 reason, so every exception is visible in review.

@@ -16,17 +16,22 @@ Validated by `apps/server/src/config/env.js` at startup. Every problem is
 reported at once and the process exits with code 1. Values are never echoed
 in the error (they may contain credentials).
 
-| Variable               | Required | Default                      | Rules                                                                            |
-| ---------------------- | -------- | ---------------------------- | -------------------------------------------------------------------------------- |
-| `NODE_ENV`             | no       | `development`                | `development` \| `test` \| `production`                                          |
-| `PORT`                 | no       | `5000`                       | integer 0–65535                                                                  |
-| `MONGODB_URI`          | **yes**  | —                            | `mongodb://` or `mongodb+srv://`; must be a loopback host when `NODE_ENV=test`   |
-| `CLIENT_ORIGIN`        | **yes**  | —                            | comma-separated `http(s)` origins (no paths, no `*`); used by CORS and Socket.IO |
-| `LOG_LEVEL`            | no       | `info` (`silent` under test) | `silent` \| `error` \| `warn` \| `info` \| `debug`                               |
-| `RATE_LIMIT_WINDOW_MS` | no       | `900000` (15 min)            | positive integer                                                                 |
-| `RATE_LIMIT_MAX`       | no       | `300`                        | positive integer, requests per IP per window on `/api/*`                         |
-| `JWT_SECRET`           | Phase 1  | —                            | placeholder only; not read by the server yet                                     |
-| `JWT_EXPIRES_IN`       | Phase 1  | —                            | placeholder only; not read by the server yet                                     |
+| Variable                    | Required | Default                            | Rules                                                                                           |
+| --------------------------- | -------- | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                  | no       | `development`                      | `development` \| `test` \| `production`                                                         |
+| `PORT`                      | no       | `5000`                             | integer 0–65535                                                                                 |
+| `MONGODB_URI`               | **yes**  | —                                  | `mongodb://` or `mongodb+srv://`; must be a loopback host when `NODE_ENV=test`                  |
+| `CLIENT_ORIGIN`             | **yes**  | —                                  | comma-separated `http(s)` origins (no paths, no `*`); used by CORS and Socket.IO                |
+| `LOG_LEVEL`                 | no       | `info` (`silent` under test)       | `silent` \| `error` \| `warn` \| `info` \| `debug`                                              |
+| `RATE_LIMIT_WINDOW_MS`      | no       | `900000` (15 min)                  | positive integer                                                                                |
+| `RATE_LIMIT_MAX`            | no       | `300`                              | positive integer, requests per IP per window on `/api/*`                                        |
+| `JWT_SECRET`                | **yes**  | —                                  | ≥ 32 characters; the `.env.example` placeholder is rejected; never logged or echoed             |
+| `JWT_EXPIRES_IN`            | no       | `1h`                               | duration (`30s`, `15m`, `1h`, `7d`): token lifetime = idle timeout (sliding renewal)            |
+| `SESSION_MAX_AGE`           | no       | `7d`                               | duration ≥ `JWT_EXPIRES_IN`: absolute session lifetime after sign-in                            |
+| `AUTH_COOKIE_SECURE`        | no       | `true` in production, else `false` | `true`/`false`; `false` is rejected in production. When true the cookie is `__Host-rtc_session` |
+| `AUTH_COOKIE_SAMESITE`      | no       | `lax`                              | `lax`, `strict` or `none` (`none` requires Secure)                                              |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | no       | `900000` (15 min)                  | positive integer                                                                                |
+| `AUTH_RATE_LIMIT_MAX`       | no       | `10`                               | per IP per window: failed logins; registrations                                                 |
 
 ## Client variables (public)
 
@@ -55,6 +60,9 @@ created database:
   uniquely named database, and destroy the instance afterwards;
 - E2E (`scripts/e2e-backend.js`) does the same and passes all variables
   explicitly;
+- `JWT_SECRET` is generated randomly for every test run (`randomBytes(48)`)
+  by the Vitest helpers and the E2E backend, so no signing secret is ever
+  committed and CI needs no secrets;
 - `NODE_ENV=test` refuses any non-loopback `MONGODB_URI` as a second line of
   defence against touching a shared or production database.
 

@@ -37,6 +37,14 @@ A task is DONE only when all applicable conditions are true.
 - [ ] Sensitive data excluded from logs/responses.
 - [ ] CORS/security configuration reviewed.
 
+### Authentication-specific checks (from Phase 1)
+
+- [ ] Protected routes use the shared `authenticate` middleware (and `authorize(policy)` for resource access); no controller re-implements auth.
+- [ ] Identity is taken from `req.auth` / `socket.data.auth` only, never from request payloads.
+- [ ] Responses expose users only through `toPublicUser`; tests assert no `passwordHash`, token or secret in bodies and logs.
+- [ ] New state-changing endpoints are covered by the Origin check (mounted under `/api`).
+- [ ] New tests use generated secrets and `example.test` users, never real credentials.
+
 ## Documentation
 
 - [ ] API contract updated.

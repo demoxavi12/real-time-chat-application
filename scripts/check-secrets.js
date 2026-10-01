@@ -53,9 +53,18 @@ const CONTENT_RULES = [
   },
 ]
 
+const SECRET_KEY =
+  '([A-Z0-9_]*(?:SECRET|PASSWORD|PASSWD|API_KEY|PRIVATE_KEY|ACCESS_KEY|TOKEN)[A-Z0-9_]*)'
 // KEY=value lines (env files, shell, YAML, docs) naming a secret.
-const SECRET_ASSIGNMENT =
-  /^\s*(?:export\s+)?([A-Z0-9_]*(?:SECRET|PASSWORD|PASSWD|API_KEY|PRIVATE_KEY|ACCESS_KEY|TOKEN)[A-Z0-9_]*)\s*[=:]\s*['"]?([^\s'"#]+)/
+const SECRET_ASSIGNMENT = new RegExp(
+  `^\\s*(?:export\\s+)?${SECRET_KEY}\\s*[=:]\\s*['"]?([^\\s'"#]+)`,
+)
+// In source code a value is only a candidate secret when it is a string
+// literal; `JWT_SECRET: generatedSecret` or a schema expression is not.
+const CODE_SECRET_ASSIGNMENT = new RegExp(
+  `^\\s*(?:export\\s+)?(?:(?:const|let|var)\\s+)?${SECRET_KEY}\\s*[=:]\\s*(['"\`])([^'"\`\\s]+)\\2`,
+)
+const CODE_FILE = /\.(c|m)?jsx?$|\.tsx?$/
 const PLACEHOLDER =
   /replace|placeholder|example|changeme|change-me|your[-_]|test-only|dummy|<[^>]*>|^\$\{|^\$\(|\*{3,}|x{6,}|^(true|false|null)$/i
 
@@ -91,18 +100,26 @@ function scanFile(file) {
   if (BINARY_EXTENSIONS.test(file) || SKIP_FILES.has(file.split('/').pop())) {
     return findings
   }
+  const isCode = CODE_FILE.test(file)
   const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/)
   lines.forEach((text, index) => {
     if (ALLOW_MARKER.test(text)) return
     for (const { rule, pattern } of CONTENT_RULES) {
       if (pattern.test(text)) findings.push({ file, line: index + 1, rule })
     }
-    const assignment = SECRET_ASSIGNMENT.exec(text)
-    if (assignment && !PLACEHOLDER.test(assignment[2])) {
+    const match = isCode
+      ? CODE_SECRET_ASSIGNMENT.exec(text)
+      : SECRET_ASSIGNMENT.exec(text)
+    const [key, value] = !match
+      ? []
+      : isCode
+        ? [match[1], match[3]]
+        : [match[1], match[2]]
+    if (key && !PLACEHOLDER.test(value)) {
       findings.push({
         file,
         line: index + 1,
-        rule: `non-placeholder value for ${assignment[1]}`,
+        rule: `non-placeholder value for ${key}`,
       })
     }
   })

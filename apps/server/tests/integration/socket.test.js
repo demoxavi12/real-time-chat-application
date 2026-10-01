@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { startServer } from '../../src/server.js'
 import { AppError } from '../../src/utils/AppError.js'
 import { parseWithSchema } from '../../src/validators/parseWithSchema.js'
+import { registerUser } from '../helpers/auth.js'
 import {
   createMemoryLogger,
   TEST_ORIGIN,
@@ -30,6 +31,8 @@ function testHandlers({ on }) {
 
 const clients = []
 let server
+// Session of a real registered user: every socket must authenticate.
+let sessionCookie
 
 async function boot({ middlewares, handlers = [testHandlers] } = {}) {
   const { logger, lines } = createMemoryLogger('debug')
@@ -40,7 +43,9 @@ async function boot({ middlewares, handlers = [testHandlers] } = {}) {
     logger,
     socket: { handlers, ...(middlewares && { middlewares }) },
   })
-  return { url: `http://127.0.0.1:${server.port}`, lines }
+  const url = `http://127.0.0.1:${server.port}`
+  ;({ cookie: sessionCookie } = await registerUser(url))
+  return { url, lines }
 }
 
 function connect(url, options = {}) {
@@ -48,6 +53,7 @@ function connect(url, options = {}) {
     transports: ['websocket'],
     reconnection: false,
     forceNew: true,
+    extraHeaders: { cookie: sessionCookie },
     ...options,
   })
   clients.push(client)

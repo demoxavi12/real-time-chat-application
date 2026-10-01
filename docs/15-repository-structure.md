@@ -10,9 +10,12 @@ added as phases need them rather than created empty.
 │   │   ├── index.html
 │   │   ├── public/
 │   │   ├── src/
+│   │   │   ├── components/        # shared UI (FormField)
 │   │   │   ├── config/            # validated VITE_* configuration
+│   │   │   ├── features/auth/     # AuthProvider, login/register pages, route guards
 │   │   │   ├── features/system/   # backend status page
-│   │   │   ├── services/api/      # REST boundary (httpClient, systemApi)
+│   │   │   ├── pages/             # protected application shell
+│   │   │   ├── services/api/      # REST boundary (httpClient, systemApi, authApi)
 │   │   │   ├── services/socket/   # Socket.IO boundary (socketClient)
 │   │   │   ├── App.jsx
 │   │   │   ├── index.css
@@ -24,10 +27,12 @@ added as phases need them rather than created empty.
 │       ├── src/
 │       │   ├── config/            # env validation, database connection
 │       │   ├── controllers/
-│       │   ├── middleware/
+│       │   ├── middleware/        # incl. authenticate, authorize, requireAllowedOrigin
+│       │   ├── models/            # User, RevokedSession
+│       │   ├── repositories/
 │       │   ├── routes/
 │       │   ├── services/
-│       │   ├── sockets/           # server factory, bindEvent, handlers/, middleware/
+│       │   ├── sockets/           # server factory, bindEvent, handlers/, middleware/ (handshake auth)
 │       │   ├── utils/
 │       │   ├── validators/
 │       │   ├── app.js             # Express app factory (no I/O)
@@ -40,7 +45,7 @@ added as phases need them rather than created empty.
 │       ├── vitest.config.js       # "unit" and "integration" projects
 │       └── package.json
 ├── docs/
-├── e2e/                           # Playwright specs
+├── e2e/                           # Playwright specs (foundation, auth) + support.js
 ├── scripts/
 │   ├── check-secrets.js           # secret scan
 │   ├── e2e-backend.js             # backend + ephemeral MongoDB for E2E
@@ -59,9 +64,8 @@ added as phases need them rather than created empty.
 └── CLAUDE.md
 ```
 
-`models/` and `repositories/` are added to `apps/server/src` with the first
-model (Phase 1); `pages/`, `components/`, `hooks/`, `context/` are added to the
-client when the chat UI arrives (Phase 4).
+Further folders (for example client `hooks/`) are added when a phase needs
+them.
 
 ## Root scripts
 

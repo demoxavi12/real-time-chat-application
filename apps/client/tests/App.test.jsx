@@ -1,7 +1,19 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import App from '../src/App.jsx'
+import { MemoryRouter } from 'react-router'
+import RealApp from '../src/App.jsx'
 import { ApiError } from '../src/services/api/httpClient.js'
+import { fakeAuthApi } from './helpers.jsx'
+
+// Phase 0 status-page tests. Since Phase 1 the status page is the public
+// /status route (and part of the signed-in shell); render it as a guest.
+function App(props) {
+  return (
+    <MemoryRouter initialEntries={['/status']}>
+      <RealApp authApi={fakeAuthApi()} {...props} />
+    </MemoryRouter>
+  )
+}
 
 const healthy = {
   getHealth: vi.fn(async () => ({ status: 'ok' })),

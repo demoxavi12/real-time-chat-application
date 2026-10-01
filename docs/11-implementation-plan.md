@@ -1,5 +1,13 @@
 # Implementation Plan
 
+## Status
+
+| Phase                                   | State                                                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 0 — Foundation                          | **Done** (commit `cce0410`)                                                                             |
+| 1 — Backend foundation + authentication | **Done**: auth API, User model, sessions, frontend auth UI, Socket.IO handshake auth, tests (see below) |
+| 2–7                                     | Not started                                                                                             |
+
 ## Phase 0 — Foundation
 
 - Initialize monorepo/repository structure.
@@ -29,6 +37,12 @@
 - Auth tests.
 
 **Gate:** auth API integration tests pass.
+
+**Delivered beyond the original Phase 1 list** (pulled forward so
+authentication is usable end to end): login/register UI, auth state and
+protected routes (Phase 4 items), Socket.IO handshake authentication
+(Phase 3 item), authentication E2E tests (Phase 5 item), auth rate limiting
+(Phase 6 item). Chat-related parts of those phases remain open.
 
 ## Phase 2 — Conversation/message domain
 
