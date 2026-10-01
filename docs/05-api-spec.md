@@ -8,11 +8,11 @@ Base path:
 
 ## Implementation status
 
-| Endpoint group                 | Status                                                          |
-| ------------------------------ | --------------------------------------------------------------- |
-| Health (`/health`, `/ready`)   | **Implemented (Phase 0)**, integration-tested                   |
-| Auth (`/api/auth/*`)           | **Implemented (Phase 1)**, unit/integration/security/E2E-tested |
-| Users, Conversations, Messages | Specified below; not implemented yet                            |
+| Endpoint group                                                        | Status                                                                                         |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Health (`/health`, `/ready`)                                          | **Implemented (Phase 0)**, integration-tested                                                  |
+| Auth (`/api/auth/*`)                                                  | **Implemented (Phase 1)**, unit/integration/security/E2E-tested                                |
+| Users, Conversations, Messages (`/api/users`, `/api/conversations/*`) | **Implemented (Phase 2)**, unit/integration/security/E2E-tested; real-time delivery is Phase 3 |
 
 Cross-cutting behaviour that is already implemented for every route:
 
@@ -92,6 +92,10 @@ Dependency error messages (host names, driver errors) are never included.
 | 403  | `FORBIDDEN`               | Authenticated but an `authorize()` policy denied it      |
 | 403  | `ORIGIN_NOT_ALLOWED`      | Unsafe method with a foreign `Origin` header             |
 | 404  | `NOT_FOUND`               | No such route                                            |
+| 400  | `INVALID_CURSOR`          | Malformed, tampered or foreign pagination cursor         |
+| 400  | `INVALID_PARTICIPANT`     | Opening a private conversation with yourself             |
+| 404  | `USER_NOT_FOUND`          | Target user of a private conversation does not exist     |
+| 404  | `CONVERSATION_NOT_FOUND`  | Conversation missing **or** not accessible (same answer) |
 | 409  | `EMAIL_ALREADY_EXISTS`    | Registration with an existing email                      |
 | 413  | `PAYLOAD_TOO_LARGE`       | JSON body over 100 KB                                    |
 | 429  | `RATE_LIMITED`            | API rate limit exceeded                                  |
@@ -194,48 +198,159 @@ immediately); the cookie is always cleared. Other sessions of the same user
 general `/api` limit. `GET /me`, logout and the health probes are not
 auth-rate-limited.
 
-## Users
+## Users (implemented — Phase 2)
 
-### GET /users
+All routes below require the session cookie (`401 AUTHENTICATION_REQUIRED` /
+`AUTHENTICATION_INVALID` otherwise), respond with `Cache-Control: no-store`,
+reject unknown query parameters and body fields (`400 VALIDATION_ERROR`),
+and take the acting user **only** from the session.
 
-Authenticated user search/list with bounded pagination.
+### GET /api/users
 
-Do not expose sensitive account fields.
+Directory of _other_ users (the requester is excluded).
 
-## Conversations
+| Query    | Rules                                                                                                                                                 |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `q`      | optional, trimmed, 1–50 chars. Contains `@` → exact email match (normalized); otherwise case-insensitive **name prefix** (regex-escaped and anchored) |
+| `limit`  | 1–50, default 20                                                                                                                                      |
+| `cursor` | opaque, from a previous `nextCursor`                                                                                                                  |
 
-### GET /conversations
+`200` → `{ "users": [{ "id": "...", "name": "Bob" }], "nextCursor": "..." | null }`
 
-Returns conversations visible to the authenticated user.
+Only `id` and `name` are returned — never emails, hashes or timestamps (an
+exact email search confirms an account by returning its id/name only).
 
-### POST /conversations/private
+## Conversations (implemented — Phase 2)
 
-Request:
+Conversation shape:
 
 ```json
 {
-  "userId": "<target-user-id>"
+  "id": "65f0…",
+  "type": "private",
+  "name": null,
+  "participants": [
+    { "id": "65f0…a", "name": "Alice" },
+    { "id": "65f0…b", "name": "Bob" }
+  ],
+  "createdAt": "2026-10-01T12:00:00.000Z",
+  "lastMessageAt": "2026-10-01T12:05:00.000Z"
 }
 ```
 
-Server must derive the requester from authentication.
+The public room has `type: "public"`, `name: "General"` and
+`participants: []` (it is open to every authenticated user). Private
+conversations have `name: null`; clients show the other participant's name.
 
-### GET /conversations/:conversationId
+### Access rule
 
-Returns authorized conversation metadata.
+- Public room: every authenticated user may read and post.
+- Private conversation: only its two participants.
+- Anyone else gets `404 CONVERSATION_NOT_FOUND` — the same response as for an
+  id that does not exist, so ids cannot be probed. Authorization runs before
+  query/body validation, so non-members learn nothing else either.
 
-## Messages
+### GET /api/conversations
 
-### GET /conversations/:conversationId/messages
+Conversations visible to the requester: the public room plus their private
+conversations, most recently active first (last message, else creation).
 
-Query:
+| Query    | Rules                     |
+| -------- | ------------------------- |
+| `limit`  | 1–100, default 30         |
+| `cursor` | opaque, from `nextCursor` |
 
-```text
-limit=30
-before=<cursor>
+`200` → `{ "conversations": [...], "nextCursor": "..." | null }`
+
+### POST /api/conversations/private
+
+Opens the private conversation between the requester and `userId`, creating
+it on first use. Idempotent and safe under concurrency: exactly one
+conversation ever exists per pair, whoever opens it and however many requests
+race.
+
+Request (strict — only `userId`):
+
+```json
+{ "userId": "<other-user-id>" }
 ```
 
-Server must verify conversation membership.
+| Status | Meaning                                                                                |
+| ------ | -------------------------------------------------------------------------------------- |
+| 201    | Created now → `{ "conversation": … }`                                                  |
+| 200    | Already existed → same `{ "conversation": … }`                                         |
+| 400    | `VALIDATION_ERROR` (malformed id, extra fields) or `INVALID_PARTICIPANT` (your own id) |
+| 404    | `USER_NOT_FOUND`                                                                       |
+
+### GET /api/conversations/:conversationId
+
+`200` → `{ "conversation": … }`; `400` malformed id; `404 CONVERSATION_NOT_FOUND`.
+
+There are no endpoints that change membership, rename or delete
+conversations (none are specified); `PATCH`/`PUT`/`DELETE` return `404`.
+
+## Messages (implemented — Phase 2)
+
+Message shape:
+
+```json
+{
+  "id": "65f0…",
+  "conversationId": "65f0…",
+  "sender": { "id": "65f0…", "name": "Alice" },
+  "content": "Hello",
+  "clientMessageId": "6f1c…",
+  "createdAt": "2026-10-01T12:05:00.000Z"
+}
+```
+
+`sender.name` is `null` if the sender's account no longer exists. Content is
+plain text and must be rendered as text, never as HTML.
+
+### GET /api/conversations/:conversationId/messages
+
+Requires access to the conversation.
+
+| Query    | Rules                                                   |
+| -------- | ------------------------------------------------------- |
+| `limit`  | 1–100, default 30                                       |
+| `before` | opaque cursor from a previous `nextCursor` (older page) |
+
+`200` → `{ "messages": [...], "nextCursor": "..." | null }`
+
+- The first request returns the **newest** `limit` messages; each page is
+  ordered **oldest → newest**.
+- `nextCursor` fetches the next _older_ page; `null` means there is no
+  older history.
+- Ordering is `(createdAt, _id)`: stable even when messages share a
+  timestamp; a cursor stays valid if its message is deleted.
+- A cursor is bound to its conversation; malformed, tampered, wrong-kind or
+  other-conversation cursors → `400 INVALID_CURSOR`.
+
+### POST /api/conversations/:conversationId/messages
+
+Durable send over REST (real-time delivery is Phase 3). Requires access.
+
+```json
+{ "content": "Hello", "clientMessageId": "6f1c2a90-…" }
+```
+
+- `content`: required; line endings normalized and surrounding whitespace
+  trimmed; 1–2000 characters; no control characters except newline and tab.
+- `clientMessageId`: optional, 8–64 of `A–Z a–z 0–9 _ -`. Retrying with the
+  same id (same sender, same conversation) returns the originally stored
+  message with `200` instead of creating a duplicate — also under concurrent
+  retries.
+- Server-owned fields (`senderId`, `conversationId`, `createdAt`, `readBy`,
+  …) are rejected (`400`); the sender is always the session user and
+  `createdAt` is server time.
+
+| Status | Meaning                                                         |
+| ------ | --------------------------------------------------------------- |
+| 201    | Stored → `{ "message": … }`                                     |
+| 200    | Duplicate `clientMessageId` → the original `{ "message": … }`   |
+| 400    | `VALIDATION_ERROR`                                              |
+| 404    | `CONVERSATION_NOT_FOUND` (missing or no access; nothing stored) |
 
 ## Standard response envelope
 

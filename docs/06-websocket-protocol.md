@@ -6,7 +6,12 @@ The Socket.IO **foundation** (Phase 0) and **handshake authentication**
 (Phase 1) are implemented and integration-tested
 (`apps/server/tests/integration/socket.test.js`, `socket.auth.test.js`).
 **No application events are registered yet**: every event below is a
-specification for Phase 3.
+specification for Phase 3. Since Phase 2 conversations and messages exist
+and are fully usable over REST (`docs/05-api-spec.md`); Phase 3 will deliver
+them in real time. Socket handlers must reuse the same services and the
+same access rule (`canAccessConversation`: public room for everyone, private
+conversations for their two participants) and the same validation
+(`sendMessageSchema`, `clientMessageId` dedup) as REST.
 
 What exists today (`apps/server/src/sockets/`):
 

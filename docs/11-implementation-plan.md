@@ -2,11 +2,12 @@
 
 ## Status
 
-| Phase                                   | State                                                                                                   |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| 0 — Foundation                          | **Done** (commit `cce0410`)                                                                             |
-| 1 — Backend foundation + authentication | **Done**: auth API, User model, sessions, frontend auth UI, Socket.IO handshake auth, tests (see below) |
-| 2–7                                     | Not started                                                                                             |
+| Phase                                   | State                                                                                                                                                      |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 — Foundation                          | **Done** (commit `cce0410`)                                                                                                                                |
+| 1 — Backend foundation + authentication | **Done**: auth API, User model, sessions, frontend auth UI, Socket.IO handshake auth, tests (see below)                                                    |
+| 2 — Conversation/message domain         | **Done**: models + indexes, users directory, public room, private conversations, REST messages, cursor history, authorization, minimal REST chat UI, tests |
+| 3–7                                     | Not started                                                                                                                                                |
 
 ## Phase 0 — Foundation
 
@@ -56,6 +57,12 @@ protected routes (Phase 4 items), Socket.IO handshake authentication
 - Pagination tests.
 
 **Gate:** all message/conversation API tests pass.
+
+**Delivered:** see `05-api-spec.md` (Users, Conversations, Messages). Also
+pulled forward from Phase 4: a minimal REST-only chat UI (conversation list,
+user search, history with "load older", composer) so the data layer is
+exercised end to end in E2E. Real-time delivery, presence, typing and read
+receipts remain Phase 3.
 
 ## Phase 3 — Socket.IO
 

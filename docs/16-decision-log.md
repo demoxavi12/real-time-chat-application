@@ -146,6 +146,60 @@ Record meaningful decisions here.
 
 **Decision:** `createSocketServer` requires an explicit `middlewares` array; `startServer` passes the authentication middleware by default. Tests may inject other middlewares, but no code path silently starts an unauthenticated Socket.IO server.
 
+## ADR-020 — Private conversation uniqueness via a deterministic key and a unique index
+
+**Status:** Accepted (Phase 2)
+
+**Decision:** Each private conversation stores `privateKey` = the two participant ids sorted and joined. A unique index on `privateKey` (partial on `type: "private"`) makes MongoDB itself reject a second conversation for the same pair. Opening is find → create → on duplicate-key error read the winner. The read first is only a fast path; correctness comes from the index.
+
+**Consequences:** Concurrent opens (tested with 12 HTTP and 20 repository-level parallel calls, plus a forced race) always yield one conversation; at most one caller gets `201`, the rest `200`.
+
+**Alternatives considered:** a multi-document transaction (needs a replica set, still needs a uniqueness rule); a unique index on the `participantIds` array (multikey indexes enforce uniqueness per element, not per pair, so it would allow only one conversation per user).
+
+## ADR-021 — Public room as an index-enforced singleton
+
+**Status:** Accepted (Phase 2)
+
+**Decision:** `docs/04` allows the public room to be a singleton system conversation. One `type: "public"` conversation named "General" is created idempotently at startup (same find/create/duplicate-key pattern), guarded by a unique partial index on `type`. It has no participant list: every authenticated user may read and post. No endpoints create groups or change membership because none are specified.
+
+## ADR-022 — Membership authorization with 404 for non-members
+
+**Status:** Accepted (Phase 2)
+
+**Decision:** Every `/conversations/:id/...` route runs `authenticate → validate(params) → authorize(conversationAccess) → validate(query/body) → controller`. The policy loads the conversation for `req.auth.userId` and throws `404 CONVERSATION_NOT_FOUND` for both "does not exist" and "not a participant", and attaches `req.conversation` for the controller. Membership is the `participantIds` array (docs/04) rather than a separate collection. `canAccessConversation` is the single rule to be reused by Socket.IO in Phase 3.
+
+**Consequences:** Ids cannot be probed (identical responses), and non-members never see validation details. `403 FORBIDDEN` remains the generic `authorize()` outcome for future policies where existence is not secret.
+
+## ADR-023 — Keyset (cursor) pagination with (timestamp, _id) ordering
+
+**Status:** Accepted (Phase 2)
+
+**Decision:** Messages are ordered by `(createdAt, _id)` and paged backwards with `limit + 1` keyset queries backed by `{ conversationId: 1, createdAt: -1, _id: -1 }`. Conversation lists use `(lastActivityAt, _id)`, the user directory `_id`. Cursors are opaque base64url JSON with a kind tag; message cursors embed their conversation id and are rejected elsewhere. They are not signed because they only encode a position in data the caller is already authorized to read; they are strictly schema-validated. First page = newest messages, returned oldest → newest; `nextCursor` loads older ones.
+
+**Consequences:** Stable under identical timestamps and concurrent inserts, no skip/offset cost, cursors survive deletion of their message. No "jump to page N".
+
+## ADR-024 — REST message sending with clientMessageId idempotency (Phase 2), sockets later
+
+**Status:** Accepted (Phase 2)
+
+**Decision:** `POST /api/conversations/:id/messages` (not in the original API list) persists messages until Socket.IO `message:send` arrives in Phase 3. Optional `clientMessageId` + a unique partial index on `(conversationId, senderId, clientMessageId)` makes retries idempotent (`200` with the original). Sender and timestamps are server-owned. Content is trimmed plain text, 1–2000 characters.
+
+**Consequences:** The same service will back the Phase 3 socket event, so REST and sockets share validation, dedup and authorization.
+
+## ADR-025 — Index set chosen from actual queries
+
+**Status:** Accepted (Phase 2)
+
+**Decision:** Only indexes with a current query: `private_pair_unique`, `public_room_singleton`, `participant_activity`, `conversation_history`, `client_message_id_unique` (plus Phase 1's). No `{ senderId, createdAt }` index (no such query). User search by name prefix uses a case-insensitive anchored regex bounded by `limit` and `maxTimeMS` rather than a new index; exact email search uses the existing unique index. Index usage of the hot paths is asserted with `explain()` in tests.
+
+**Consequences:** Name-prefix search scans users; acceptable at MVP scale and bounded. If the directory grows, add a normalized `nameLower` field with an index (or a text/Atlas search index).
+
+## ADR-026 — Minimal REST chat UI in Phase 2
+
+**Status:** Accepted (Phase 2)
+
+**Decision:** To exercise the data layer end to end, the client gains a conversation list, user search, history with "load older", and a REST composer (nested routes under `/`, `/conversations/:id`). No live updates: users press Refresh or reload. Phase 3 replaces polling-by-hand with Socket.IO events; Phase 4 polishes the UI.
+
 ## Future ADR template
 
 ### ADR-XXX — Title

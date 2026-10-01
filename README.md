@@ -3,12 +3,30 @@
 A full-stack real-time messaging platform built with React, Node.js,
 Express.js, MongoDB, Socket.IO and JWT.
 
-> **Status: Phase 1 — authentication complete.** Users can register, sign in,
-> stay signed in across reloads and sign out. **No chat functionality exists
-> yet**: there are no conversations, messages, presence, typing indicators or
-> chat UI. See the [roadmap](#roadmap).
+> **Status: Phase 2 — conversations and messages (REST) complete.** Users can
+> register, find each other, open private conversations, use the public room,
+> and send and read persistent messages with paginated history. **Messages are
+> not delivered in real time yet**: others' new messages appear after Refresh
+> or reload. Presence, typing indicators and read receipts are not implemented
+> yet (Phase 3). See the [roadmap](#roadmap).
 
 ## What exists today
+
+- **Conversations and messages** (Phase 2, REST)
+  - `GET /api/users`: directory and search (name prefix or exact email), returns
+    only id and name, cursor-paginated
+  - public room "General" (one, for everyone) and private 1-to-1
+    conversations; opening a private conversation is idempotent and creates
+    exactly one per pair, even under concurrent requests (unique index)
+  - `GET /api/conversations`, `POST /api/conversations/private`,
+    `GET /api/conversations/:id`
+  - `GET /api/conversations/:id/messages` (cursor pagination, stable ordering)
+    and `POST /api/conversations/:id/messages` (sender from the session,
+    retry-safe with `clientMessageId`)
+  - server-side membership authorization on every route; non-members get the
+    same 404 as for unknown ids
+  - minimal chat UI: conversation list, user search, history with
+    "Load older messages", composer
 
 - **Authentication** (Phase 1)
   - `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`,
@@ -37,7 +55,8 @@ Express.js, MongoDB, Socket.IO and JWT.
 - **Frontend** (`apps/client`): React 19 + Vite 8 + React Router
   - validated `VITE_*` configuration (defaults to same-origin)
   - REST client boundary (envelope-aware) and Socket.IO client boundary (not connected yet)
-  - routes: `/` (protected), `/login`, `/register`, `/status` (public system status)
+  - routes: `/` and `/conversations/:id` (protected chat), `/login`, `/register`,
+    `/status` (public system status)
 - **Automation**: Prettier, ESLint, Vitest (unit, integration, Socket.IO),
   Playwright E2E, npm audit, secret scan, `npm run verify`, GitHub Actions CI
 
@@ -160,14 +179,16 @@ Other scripts: `npm run lint`, `npm run format`, `npm run format:check`,
 ## API and Socket.IO
 
 - REST contract: [docs/05-api-spec.md](docs/05-api-spec.md) (implemented today:
-  health and readiness, authentication, error envelope and error codes)
+  health and readiness, authentication, users, conversations, messages, error
+  envelope and error codes)
 - Socket.IO contract: [docs/06-websocket-protocol.md](docs/06-websocket-protocol.md)
-  (implemented today: authenticated connection lifecycle and conventions; no events)
+  (implemented today: authenticated connection lifecycle and conventions; chat
+  events are Phase 3)
 - Security design: [docs/07-auth-security.md](docs/07-auth-security.md)
   (the "Implementation" section describes the auth model, cookie threat model
   and known limitations)
 - Data model: [docs/04-data-model.md](docs/04-data-model.md) (implemented: User,
-  RevokedSession)
+  RevokedSession, Conversation, Message, with their indexes)
 
 ## Roadmap
 
@@ -175,7 +196,7 @@ From [docs/11-implementation-plan.md](docs/11-implementation-plan.md):
 
 - [x] **Phase 0** — Foundation: workspace, tooling, config, database and Socket.IO boundaries, health/readiness, tests, CI, `npm run verify`
 - [x] **Phase 1** — Authentication: user model, registration/login, JWT cookie sessions with revocation, auth UI, protected routes, Socket.IO handshake auth
-- [ ] **Phase 2** — Conversations and messages (REST, authorization, pagination)
+- [x] **Phase 2** — Conversations and messages: models and indexes, user directory, public room, private conversations, REST messaging, cursor pagination, authorization, minimal REST chat UI
 - [ ] **Phase 3** — Socket.IO: messaging, presence, typing, read state, reconnection
 - [ ] **Phase 4** — Frontend chat UI
 - [ ] **Phase 5** — E2E coverage of chat flows

@@ -7,6 +7,7 @@ import {
   TEST_ORIGIN,
   testConfig,
   unusedAuth,
+  unusedChat,
 } from '../helpers/testEnv.js'
 
 function buildApp({ checks = { database: async () => {} }, config } = {}) {
@@ -16,6 +17,7 @@ function buildApp({ checks = { database: async () => {} }, config } = {}) {
     logger: silentLogger,
     readiness: createReadinessService(checks, { timeoutMs: 50 }),
     auth: unusedAuth(appConfig),
+    chat: unusedChat(),
   })
 }
 

@@ -7,7 +7,9 @@ import { parseWithSchema } from '../validators/parseWithSchema.js'
  */
 export function validate(schemas) {
   return (req, _res, next) => {
-    req.validated = {}
+    // Accumulate: a route may validate params first (before an authorization
+    // policy) and the query/body afterwards.
+    req.validated ??= {}
     for (const location of ['params', 'query', 'body']) {
       if (!schemas[location]) continue
       req.validated[location] = parseWithSchema(

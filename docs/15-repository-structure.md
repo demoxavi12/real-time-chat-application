@@ -13,9 +13,10 @@ added as phases need them rather than created empty.
 │   │   │   ├── components/        # shared UI (FormField)
 │   │   │   ├── config/            # validated VITE_* configuration
 │   │   │   ├── features/auth/     # AuthProvider, login/register pages, route guards
+│   │   │   ├── features/chat/     # conversation list, user search, history, composer (REST)
 │   │   │   ├── features/system/   # backend status page
-│   │   │   ├── pages/             # protected application shell
-│   │   │   ├── services/api/      # REST boundary (httpClient, systemApi, authApi)
+│   │   │   ├── pages/             # protected chat shell
+│   │   │   ├── services/api/      # REST boundary (httpClient, systemApi, authApi, chatApi)
 │   │   │   ├── services/socket/   # Socket.IO boundary (socketClient)
 │   │   │   ├── App.jsx
 │   │   │   ├── index.css
@@ -28,7 +29,8 @@ added as phases need them rather than created empty.
 │       │   ├── config/            # env validation, database connection
 │       │   ├── controllers/
 │       │   ├── middleware/        # incl. authenticate, authorize, requireAllowedOrigin
-│       │   ├── models/            # User, RevokedSession
+│       │   ├── models/            # User, RevokedSession, Conversation, Message
+│       │   ├── policies/          # authorize() policies (conversationAccess)
 │       │   ├── repositories/
 │       │   ├── routes/
 │       │   ├── services/
@@ -45,7 +47,7 @@ added as phases need them rather than created empty.
 │       ├── vitest.config.js       # "unit" and "integration" projects
 │       └── package.json
 ├── docs/
-├── e2e/                           # Playwright specs (foundation, auth) + support.js
+├── e2e/                           # Playwright specs (foundation, auth, chat) + support.js
 ├── scripts/
 │   ├── check-secrets.js           # secret scan
 │   ├── e2e-backend.js             # backend + ephemeral MongoDB for E2E

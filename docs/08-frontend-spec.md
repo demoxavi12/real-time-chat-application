@@ -85,3 +85,39 @@ Preferred flow:
 ## Responsive behavior
 
 Desktop and mobile layouts must both be tested using automated browser tests.
+
+## Implementation status (Phase 2)
+
+Implemented (REST only — no live updates until Phase 3):
+
+```text
+App (AuthProvider, routes)
+ ├─ /login, /register            (Phase 1)
+ ├─ /status                       (public system status)
+ └─ / (RequireAuth) HomePage
+     ├─ Account bar (current user, System status link, Sign out)
+     ├─ Sidebar
+     │   ├─ ConversationList     public room + private conversations, Refresh, "More"
+     │   └─ UserSearch           name prefix / exact email -> "Message <name>"
+     └─ <Outlet>
+         ├─ index: "Select a conversation…"
+         └─ conversations/:id: ConversationView
+             ├─ Header (other participant's name / "General") + Refresh
+             ├─ "Load older messages" (cursor)
+             ├─ Message list (oldest -> newest, text only)
+             └─ MessageComposer (REST send)
+```
+
+- State: `useConversations` (list, load more, upsert, move-to-top on send) and
+  `useMessages` (conversation + history, load older, refresh, add). The
+  conversation view is keyed by id so switching conversations resets it.
+- Composer: Enter sends, Shift+Enter adds a newline; trimmed 1–2000
+  characters validated client-side; button disabled while sending; on
+  failure the draft is kept and a retry reuses the same `clientMessageId`
+  so the server never stores it twice.
+- Loading, empty ("No conversations yet", "No messages yet"), error (with
+  retry) and not-found (inaccessible conversation) states are all rendered.
+- Message content is rendered as React text (escaped, `white-space: pre-wrap`),
+  never as HTML.
+- Not implemented yet: typing indicator, presence, read state, live updates,
+  reconnection UI.

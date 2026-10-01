@@ -80,6 +80,36 @@ Recommended index:
 - participantIds
 - updatedAt / lastMessageAt as appropriate
 
+**Implemented (Phase 2)** — `apps/server/src/models/conversation.model.js`,
+collection `conversations`:
+
+| Field                    | Type           | Notes                                                               |
+| ------------------------ | -------------- | ------------------------------------------------------------------- |
+| `type`                   | String         | `public` \| `private`                                               |
+| `name`                   | String\|null   | `General` for the public room; `null` for private conversations     |
+| `participantIds`         | ObjectId[]     | Private: exactly two different users. Public: empty (open to all)   |
+| `privateKey`             | String         | Private only: the two participant ids sorted and joined (`a:b`)     |
+| `createdBy`              | ObjectId\|null | Who first opened the private conversation                           |
+| `lastMessageAt`          | Date\|null     | Time of the latest message                                          |
+| `lastActivityAt`         | Date           | Sort key for lists: creation, then each message (moved with `$max`) |
+| `createdAt`, `updatedAt` | Date           | timestamps                                                          |
+
+- The schema enforces the shape (exactly two distinct participants and a
+  matching `privateKey` for private; no participants for public) and is
+  `strict: 'throw'`.
+- Indexes:
+  - `private_pair_unique`: `{ privateKey: 1 }` unique, partial on
+    `type: "private"` — the **database** guarantees one conversation per
+    pair; the open-or-create code relies on it (duplicate-key → read the
+    winner), not on a check-then-insert.
+  - `public_room_singleton`: `{ type: 1 }` unique, partial on
+    `type: "public"` — one public room; created idempotently at startup.
+  - `participant_activity`: `{ participantIds: 1, lastActivityAt: -1, _id: -1 }`
+    — "my conversations, most recent first" with keyset pagination.
+- Membership is the `participantIds` array (plus the implicit
+  everyone-membership of the public room); there is no separate membership
+  collection and no membership-changing API (none is specified).
+
 ## Message
 
 ```text
@@ -99,6 +129,28 @@ Rules:
 - content length is bounded.
 - createdAt is server-generated.
 - clientMessageId can support retry deduplication.
+
+**Implemented (Phase 2)** — `apps/server/src/models/message.model.js`,
+collection `messages`:
+
+| Field             | Type       | Notes                                                                                         |
+| ----------------- | ---------- | --------------------------------------------------------------------------------------------- |
+| `conversationId`  | ObjectId   | Authorized conversation                                                                       |
+| `senderId`        | ObjectId   | Always the authenticated user                                                                 |
+| `clientMessageId` | String?    | Optional idempotency key from the client                                                      |
+| `content`         | String     | Plain text, 1–2000 characters (validated + trimmed)                                           |
+| `readBy`          | ObjectId[] | Read-state foundation: contains the sender on creation; updating it (message:read) is Phase 3 |
+| `createdAt`       | Date       | Server time only (no `updatedAt`: messages are immutable)                                     |
+
+- Indexes:
+  - `conversation_history`: `{ conversationId: 1, createdAt: -1, _id: -1 }` —
+    history pages and the keyset cursor (`_id` breaks timestamp ties).
+    Verified by an `explain()` test (IXSCAN, no COLLSCAN).
+  - `client_message_id_unique`: `{ conversationId: 1, senderId: 1, clientMessageId: 1 }`
+    unique, partial on `clientMessageId` being a string — retry dedup.
+  - No `{ senderId, createdAt }` index: no query needs it yet.
+- `readBy` would grow with every reader of the public room; Phase 3 should
+  revisit per-user read markers before using it for unread counts there.
 
 Recommended indexes:
 

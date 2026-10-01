@@ -49,7 +49,7 @@ body {
 }
 
 .app {
-  max-width: 40rem;
+  max-width: 64rem;
   margin: 0 auto;
   padding: 2rem 1rem;
 }
@@ -235,4 +235,154 @@ a {
 .session-bar p {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.session-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chat-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: start;
+}
+
+.chat-layout .card + .card {
+  margin-top: 0;
+}
+
+@media (max-width: 48rem) {
+  .chat-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.chat-sidebar,
+.chat-main {
+  min-width: 0;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.link-button {
+  background: none;
+  padding: 0.25rem 0.5rem;
+}
+
+.conversation-list ul,
+.user-search ul,
+.message-list {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+}
+
+.conversation-link {
+  display: block;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  color: var(--text-h);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.conversation-link.active {
+  background: var(--accent-bg);
+}
+
+.conversation-kind {
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.user-search {
+  margin-top: 1.5rem;
+}
+
+.user-search label {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.inline-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.inline-form input,
+.composer textarea {
+  font: inherit;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.inline-form input:focus-visible,
+.composer textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  overflow-wrap: anywhere;
+}
+
+.message {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--bg);
+  margin-bottom: 0.5rem;
+}
+
+.message.mine {
+  background: var(--accent-bg);
+}
+
+.message-meta {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.message-content {
+  margin: 0.25rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-h);
+}
+
+.composer {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.composer textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.composer button {
+  justify-self: end;
+}
+
+.no-conversation {
+  margin: 0;
 }

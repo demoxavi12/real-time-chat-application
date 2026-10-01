@@ -39,6 +39,31 @@ export function fakeAuthApi(overrides = {}) {
   }
 }
 
+export const publicRoom = Object.freeze({
+  id: '65f0000000000000000000c0',
+  type: 'public',
+  name: 'General',
+  participants: [],
+  createdAt: '2026-01-01T00:00:00.000Z',
+  lastMessageAt: null,
+})
+
+/** Fake chat API; by default only the (empty) public room exists. */
+export function fakeChatApi(overrides = {}) {
+  return {
+    listConversations: vi.fn(async () => ({
+      conversations: [publicRoom],
+      nextCursor: null,
+    })),
+    openPrivateConversation: vi.fn(),
+    getConversation: vi.fn(async () => publicRoom),
+    listMessages: vi.fn(async () => ({ messages: [], nextCursor: null })),
+    sendMessage: vi.fn(),
+    searchUsers: vi.fn(async () => ({ users: [], nextCursor: null })),
+    ...overrides,
+  }
+}
+
 /** Exposes the current router location for assertions. */
 function LocationProbe() {
   const location = useLocation()
@@ -55,12 +80,13 @@ export function renderApp({
   state,
   authApi = fakeAuthApi(),
   systemApi = healthySystemApi(),
+  chatApi = fakeChatApi(),
 } = {}) {
   const utils = render(
     <MemoryRouter initialEntries={[state ? { pathname: route, state } : route]}>
-      <App authApi={authApi} systemApi={systemApi} />
+      <App authApi={authApi} systemApi={systemApi} chatApi={chatApi} />
       <LocationProbe />
     </MemoryRouter>,
   )
-  return { ...utils, authApi, systemApi }
+  return { ...utils, authApi, systemApi, chatApi }
 }

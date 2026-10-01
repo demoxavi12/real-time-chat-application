@@ -3,11 +3,16 @@ import { createApp } from './app.js'
 import { createDatabase } from './config/database.js'
 import { createAuthenticate } from './middleware/authenticate.js'
 import { ensureIndexes, registerModels } from './models/index.js'
+import { createConversationRepository } from './repositories/conversation.repository.js'
+import { createMessageRepository } from './repositories/message.repository.js'
 import { createRevokedSessionRepository } from './repositories/revokedSession.repository.js'
 import { createUserRepository } from './repositories/user.repository.js'
 import { createAuthService } from './services/auth.service.js'
+import { createConversationService } from './services/conversation.service.js'
+import { createMessageService } from './services/message.service.js'
 import { createReadinessService } from './services/readiness.service.js'
 import { createTokenService } from './services/token.service.js'
+import { createUserDirectoryService } from './services/userDirectory.service.js'
 import { createSocketServer } from './sockets/index.js'
 import { createDefaultMiddlewares } from './sockets/middleware/index.js'
 import { createAuthCookie } from './utils/authCookie.js'
@@ -39,8 +44,23 @@ function createAuth({ config, models }) {
   return { authService, authCookie, authenticate }
 }
 
+/** Composition root for conversations, messages and the user directory. */
+function createChat({ models }) {
+  const users = createUserRepository(models)
+  const conversations = createConversationRepository(models)
+  return {
+    conversationService: createConversationService({ conversations, users }),
+    messageService: createMessageService({
+      messages: createMessageRepository(models),
+      conversations,
+      users,
+    }),
+    userDirectory: createUserDirectoryService({ users }),
+  }
+}
+
 /**
- * Connects to MongoDB (and ensures indexes), then starts HTTP + Socket.IO.
+ * Connects to MongoDB (and ensures indexes and the public room), then starts HTTP + Socket.IO.
  * Resolves with handles and an idempotent `close()` for graceful shutdown.
  * Throws (after cleaning up) if any step fails.
  */
@@ -49,9 +69,12 @@ export async function startServer({ config, logger, socket = {} }) {
   await database.connect()
 
   let models
+  let chat
   try {
     models = registerModels(database.connection)
     await ensureIndexes(models)
+    chat = createChat({ models })
+    await chat.conversationService.ensurePublicRoom()
   } catch (error) {
     await database.disconnect()
     throw error
@@ -59,7 +82,7 @@ export async function startServer({ config, logger, socket = {} }) {
 
   const auth = createAuth({ config, models })
   const readiness = createReadinessService({ database: () => database.ping() })
-  const app = createApp({ config, logger, readiness, auth })
+  const app = createApp({ config, logger, readiness, auth, chat })
   const httpServer = http.createServer(app)
   const io = createSocketServer(httpServer, {
     config,

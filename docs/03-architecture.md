@@ -158,12 +158,20 @@ middleware/       requestId, requestLogger, validate, rateLimiter, notFound,
                   errorHandler, authenticate, authorize, requireAllowedOrigin
 models/           User, RevokedSession schemas; registerModels(connection),
                   ensureIndexes()
-repositories/     userRepository, revokedSessionRepository (indexed lookups)
-services/         readiness, password (Argon2id), token (JWT), auth (use cases)
-routes/ controllers/   health and auth routers -> controllers -> services
+repositories/     user, revokedSession, conversation, message (indexed,
+                  bounded queries only)
+services/         readiness, password (Argon2id), token (JWT), auth,
+                  conversation (access rule, open-or-create, listing),
+                  message (send with dedup, cursor history), userDirectory,
+                  pagination (opaque keyset cursors)
+policies/         conversationAccess (authorize() policy: loads the
+                  conversation for req.auth or 404)
+routes/ controllers/   health, auth, users and conversations routers ->
+                  controllers -> services
 sockets/          createSocketServer (Origin check), bindEvent, handlers/ and
                   middleware/ (handshake authentication) registries
-validators/       parseWithSchema (shared by HTTP and Socket.IO), auth schemas
+validators/       parseWithSchema (shared by HTTP and Socket.IO), auth,
+                  common (ids, limits, cursors) and conversation/message schemas
 utils/            AppError + error codes, response envelope, JSON logger with
                   redaction, withTimeout, duration parser, auth cookie
 ```
@@ -198,15 +206,20 @@ features/auth/       AuthProvider + useAuth (status: loading | authenticated |
                      unauthenticated | error), LoginPage, RegisterPage,
                      RequireAuth / GuestOnly route guards, validation
 features/system/     SystemStatus + useSystemStatus (backend health/readiness)
-pages/HomePage.jsx   protected shell (current user, sign out, system status)
+features/chat/       useConversations, useMessages, ConversationList,
+                     UserSearch, ConversationView, MessageComposer (REST)
+pages/HomePage.jsx   protected chat shell (account bar, conversation list,
+                     user search, <Outlet> for the selected conversation)
 components/          FormField (accessible labelled input)
-App.jsx              routes: / (protected), /login + /register (guests),
+App.jsx              routes: / and /conversations/:id (protected, nested),
+                     /login + /register (guests),
                      /status (public); main.jsx wraps it in BrowserRouter
 ```
 
 The session is restored on load with `GET /api/auth/me`; the token is an
-HttpOnly cookie the client never sees. No chat UI exists yet. The socket
-client is created but never connected (it connects once chat arrives).
+HttpOnly cookie the client never sees. Conversations and messages use REST
+only; new messages from others appear after Refresh or reload. The socket
+client is created but not connected until Phase 3.
 
 ### Logging
 

@@ -63,3 +63,16 @@ export function unusedAuth(config = testConfig()) {
     authenticate: createAuthenticate({ authService, authCookie }),
   }
 }
+
+/** Chat services for app-level tests that must not touch conversations. */
+export function unusedChat() {
+  const unexpected = () => {
+    throw new Error('chat services were not expected to be called in this test')
+  }
+  const stub = new Proxy({}, { get: () => unexpected })
+  return {
+    conversationService: stub,
+    messageService: stub,
+    userDirectory: stub,
+  }
+}

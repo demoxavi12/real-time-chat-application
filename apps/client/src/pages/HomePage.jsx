@@ -1,12 +1,19 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../features/auth/authContext.js'
-import { SystemStatus } from '../features/system/SystemStatus.jsx'
+import { ConversationList } from '../features/chat/ConversationList.jsx'
+import { UserSearch } from '../features/chat/UserSearch.jsx'
+import { useConversations } from '../features/chat/useConversations.js'
 
-/** Protected application shell. Chat UI arrives in a later phase. */
-export function HomePage({ systemApi }) {
+/**
+ * Protected application shell: account bar, conversation list, user search
+ * and the selected conversation (nested route via <Outlet>). Data is loaded
+ * over REST; live updates arrive with Socket.IO in Phase 3.
+ */
+export function HomePage({ chatApi }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const list = useConversations(chatApi)
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState(null)
 
@@ -22,6 +29,11 @@ export function HomePage({ systemApi }) {
     }
   }
 
+  function openConversation(conversation) {
+    list.upsert(conversation)
+    navigate(`/conversations/${conversation.id}`)
+  }
+
   return (
     <>
       <section className="card session-bar" aria-label="Account">
@@ -29,16 +41,33 @@ export function HomePage({ systemApi }) {
           Signed in as <strong data-testid="current-user">{user.name}</strong>{' '}
           <span className="muted">({user.email})</span>
         </p>
-        <button type="button" onClick={handleLogout} disabled={signingOut}>
-          {signingOut ? 'Signing out…' : 'Sign out'}
-        </button>
+        <div className="session-actions">
+          <Link to="/status">System status</Link>
+          <button type="button" onClick={handleLogout} disabled={signingOut}>
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </button>
+        </div>
         {error && (
           <p role="alert" className="form-error">
             {error}
           </p>
         )}
       </section>
-      <SystemStatus systemApi={systemApi} />
+      <div className="chat-layout">
+        <aside className="card chat-sidebar">
+          <ConversationList list={list} currentUserId={user.id} />
+          <UserSearch chatApi={chatApi} onOpened={openConversation} />
+        </aside>
+        <div className="card chat-main">
+          <Outlet
+            context={{
+              chatApi,
+              currentUserId: user.id,
+              onMessageSent: list.recordMessage,
+            }}
+          />
+        </div>
+      </div>
     </>
   )
 }

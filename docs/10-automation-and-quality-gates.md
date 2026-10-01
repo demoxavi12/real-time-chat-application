@@ -4,18 +4,18 @@ The project is designed so routine verification does not depend on the developer
 
 ## Implementation status (Phase 0)
 
-| Gate                           | Implemented as                                                                      |
-| ------------------------------ | ----------------------------------------------------------------------------------- |
-| One-command verification       | `npm run verify` → `scripts/verify.js`                                              |
-| Formatting                     | Prettier (`format:check`) over code, config and docs                                |
-| Lint                           | ESLint flat config (`no-console` is an error outside `scripts/`)                    |
-| Unit / integration / Socket.IO | Vitest; integration uses an ephemeral in-memory MongoDB                             |
-| Build                          | `vite build` (the server has no build step)                                         |
-| E2E                            | Playwright; starts backend + DB + production client build itself, waits on `/ready` |
-| Dependency audit               | `npm audit --audit-level=high` (fails on high/critical)                             |
-| Secret scan                    | `scripts/check-secrets.js` (see below)                                              |
-| CI                             | `.github/workflows/ci.yml`                                                          |
-| Pre-commit hooks               | **Not added yet** (see section 2)                                                   |
+| Gate                           | Implemented as                                                                                                                        |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| One-command verification       | `npm run verify` → `scripts/verify.js`                                                                                                |
+| Formatting                     | Prettier (`format:check`) over code, config and docs                                                                                  |
+| Lint                           | ESLint flat config (`no-console` is an error outside `scripts/`)                                                                      |
+| Unit / integration / Socket.IO | Vitest; integration uses an ephemeral in-memory MongoDB                                                                               |
+| Build                          | `vite build` (the server has no build step)                                                                                           |
+| E2E                            | Playwright; starts backend + DB + production client build itself, waits on `/ready`; specs: foundation, auth, chat (desktop + mobile) |
+| Dependency audit               | `npm audit --audit-level=high` (fails on high/critical)                                                                               |
+| Secret scan                    | `scripts/check-secrets.js` (see below)                                                                                                |
+| CI                             | `.github/workflows/ci.yml`                                                                                                            |
+| Pre-commit hooks               | **Not added yet** (see section 2)                                                                                                     |
 
 `npm run verify` runs, in order: format check → lint → unit tests (server +
 client) → integration + Socket.IO tests → build → E2E → security. It stops at
