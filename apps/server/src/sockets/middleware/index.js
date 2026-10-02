@@ -12,9 +12,10 @@ export function createDefaultMiddlewares({
   authCookie,
   logger,
   limits,
+  trustProxy = 0,
 }) {
   return [
-    createConnectionRateLimit(limits),
+    createConnectionRateLimit({ ...limits, trustProxy }),
     createSocketAuthMiddleware({ authService, authCookie, logger }),
   ]
 }

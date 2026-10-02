@@ -151,6 +151,14 @@ const envShape = {
   SOCKET_EVENT_RATE_LIMIT: positiveInt(120),
   SOCKET_INVALID_EVENT_LIMIT: positiveInt(20),
   SOCKET_CONNECTION_RATE_LIMIT: positiveInt(30),
+  // Number of reverse proxies in front of the server (0 = none). Needed so
+  // per-IP rate limits see the client address, not the proxy's.
+  TRUST_PROXY: z.coerce
+    .number({ error: 'must be a number' })
+    .int('must be an integer')
+    .min(0, 'must be between 0 and 10')
+    .max(10, 'must be between 0 and 10')
+    .default(0),
 }
 
 function positiveInt(fallback) {
@@ -184,6 +192,17 @@ const envSchema = z.object(envShape).superRefine((env, ctx) => {
     }
   }
 
+  if (
+    env.NODE_ENV === 'production' &&
+    Array.isArray(env.CLIENT_ORIGIN) &&
+    env.CLIENT_ORIGIN.some((origin) => !origin.startsWith('https://'))
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['CLIENT_ORIGIN'],
+      message: 'must use https:// origins in production',
+    })
+  }
   if (env.NODE_ENV === 'production' && !cookieSecure(env)) {
     ctx.addIssue({
       code: 'custom',
@@ -257,6 +276,7 @@ export function loadConfig(env = process.env) {
         max: parsed.AUTH_RATE_LIMIT_MAX,
       }),
     }),
+    trustProxy: parsed.TRUST_PROXY,
     socket: Object.freeze({
       windowMs: parsed.SOCKET_RATE_LIMIT_WINDOW_MS,
       // per socket and window

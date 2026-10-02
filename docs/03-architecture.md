@@ -177,7 +177,8 @@ sockets/          createSocketServer (Origin check, per-socket limits, user/
 validators/       parseWithSchema (shared by HTTP and Socket.IO), auth,
                   common (ids, limits, cursors) and conversation/message schemas
 utils/            AppError + error codes, response envelope, JSON logger with
-                  redaction, withTimeout, duration parser, auth cookie
+                  redaction, withTimeout, duration parser, auth cookie,
+                  previewOf (bounded one-line message previews)
 ```
 
 Models are registered on `database.connection`, not on the global mongoose
@@ -213,8 +214,9 @@ features/system/     SystemStatus + useSystemStatus (backend health/readiness)
 features/realtime/   RealtimeProvider (one socket, one listener per event,
                      room refcounts, rejoin + REST resync on reconnect, auth
                      loss), useRealtime / useRealtimeEvent
-features/chat/       useConversations, useMessages, useTypingAndReads, ConversationList,
-                     UserSearch, ConversationView, MessageComposer (REST)
+features/chat/       useConversations, useMessages, useTypingAndReads, useChatScroll,
+                     chatModel (grouping, previews, times), ConversationList,
+                     UserSearch, ConversationView, MessageComposer (socket ack or REST)
 pages/HomePage.jsx   protected chat shell (account bar, conversation list,
                      user search, <Outlet> for the selected conversation)
 components/          FormField (accessible labelled input)

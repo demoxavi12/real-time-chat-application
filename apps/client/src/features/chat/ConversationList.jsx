@@ -1,6 +1,55 @@
+import { memo, useId } from 'react'
 import { NavLink } from 'react-router'
 import { useRealtime } from '../realtime/realtimeContext.js'
-import { conversationTitle, describeChatError } from './chatModel.js'
+import {
+  conversationTitle,
+  describeChatError,
+  previewText,
+  shortTime,
+} from './chatModel.js'
+
+const ConversationItem = memo(function ConversationItem({
+  conversation,
+  currentUserId,
+  online,
+}) {
+  const title = conversationTitle(conversation, currentUserId)
+  const id = useId()
+  const activity = conversation.lastMessageAt ?? conversation.createdAt
+  return (
+    <li>
+      <NavLink
+        to={`/conversations/${conversation.id}`}
+        className="conversation-link"
+        // Name = the conversation title only; kind, presence, time and
+        // preview are its description (so preview text never changes how
+        // the link is named).
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-meta ${id}-preview`}
+      >
+        <span className="conversation-line">
+          <span className="conversation-kind" id={`${id}-meta`}>
+            {conversation.type === 'public' ? 'Public' : 'Private'}
+          </span>{' '}
+          <span className="conversation-title" id={`${id}-title`}>
+            {title}
+          </span>
+          {online && (
+            <span className="online-badge">
+              <span aria-hidden="true" className="presence-dot" /> (online)
+            </span>
+          )}
+          <time className="conversation-time muted" dateTime={activity}>
+            {shortTime(activity)}
+          </time>
+        </span>
+        <span className="conversation-preview muted" id={`${id}-preview`}>
+          {previewText(conversation, currentUserId)}
+        </span>
+      </NavLink>
+    </li>
+  )
+})
 
 export function ConversationList({ list, currentUserId }) {
   const { status, conversations, nextCursor, error, reload, loadMore } = list
@@ -16,7 +65,9 @@ export function ConversationList({ list, currentUserId }) {
           Refresh
         </button>
       </div>
-      {status === 'loading' && <p role="status">Loading conversations…</p>}
+      {status === 'loading' && conversations.length === 0 && (
+        <p role="status">Loading conversations…</p>
+      )}
       {status === 'error' && (
         <div role="alert">
           <p>{describeChatError(error)}</p>
@@ -31,21 +82,15 @@ export function ConversationList({ list, currentUserId }) {
       {conversations.length > 0 && (
         <ul>
           {conversations.map((conversation) => (
-            <li key={conversation.id}>
-              <NavLink
-                to={`/conversations/${conversation.id}`}
-                className="conversation-link"
-              >
-                <span className="conversation-kind">
-                  {conversation.type === 'public' ? 'Public' : 'Private'}
-                </span>{' '}
-                {conversationTitle(conversation, currentUserId)}
-                {conversation.type === 'private' &&
-                  isOnline(otherId(conversation)) && (
-                    <span className="online-badge"> (online)</span>
-                  )}
-              </NavLink>
-            </li>
+            <ConversationItem
+              key={conversation.id}
+              conversation={conversation}
+              currentUserId={currentUserId}
+              online={
+                conversation.type === 'private' &&
+                isOnline(otherId(conversation))
+              }
+            />
           ))}
         </ul>
       )}

@@ -250,6 +250,26 @@ Record meaningful decisions here.
 
 **Decision:** One `RealtimeProvider` owns the socket while authenticated, registers one listener per server event and fans out to `useRealtimeEvent` subscribers; rooms are reference-counted; reconnect → rejoin + local `resync` (REST refetch); server-side disconnect/auth errors → session re-check. Sends use socket acks when connected and REST otherwise, reusing the same `clientMessageId` on retry. No optimistic placeholders: canonical messages are merged by id and ordered by (createdAt, id).
 
+## ADR-034 — Denormalized latest-message preview
+
+**Status:** Accepted (Phase 4)
+
+**Decision:** Conversations store `lastMessage` (`messageId`, `senderId`, 120-character one-line `preview`, `createdAt`) written with the same conditional update as `lastMessageAt` (only if newer), so lists render previews without an N+1 message query. The `messages` collection stays the source of truth.
+
+**Alternatives considered:** `$lookup` of the newest message per conversation on every list request (extra query cost per page); client-side fetch per conversation (N+1).
+
+## ADR-035 — Derived `seen` flag instead of exposing `readBy`
+
+**Status:** Accepted (Phase 4)
+
+**Decision:** Messages carry `seen` (private: read by someone other than the sender; public: `null`) so "Seen" survives a reload, while `readBy` itself stays internal.
+
+## ADR-036 — Explicit proxy trust
+
+**Status:** Accepted (Phase 6)
+
+**Decision:** `TRUST_PROXY` (hop count, default `0`) drives Express `trust proxy` and the socket connection limiter (`proxy-addr`), so rate limits key on the real client IP behind N proxies and `X-Forwarded-For` cannot be spoofed when there is no proxy. Production also requires https `CLIENT_ORIGIN` values.
+
 ## Future ADR template
 
 ### ADR-XXX — Title

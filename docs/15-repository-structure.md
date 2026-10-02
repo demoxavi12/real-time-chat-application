@@ -48,7 +48,7 @@ added as phases need them rather than created empty.
 │       ├── vitest.config.js       # "unit" and "integration" projects
 │       └── package.json
 ├── docs/
-├── e2e/                           # Playwright specs (foundation, auth, chat, realtime) + support.js
+├── e2e/                           # Playwright specs (foundation, auth, chat, realtime, ux) + support.js
 ├── scripts/
 │   ├── check-secrets.js           # secret scan
 │   ├── e2e-backend.js             # backend + ephemeral MongoDB for E2E

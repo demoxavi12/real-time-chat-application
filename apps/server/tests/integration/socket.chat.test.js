@@ -172,6 +172,7 @@ describe('message:send', () => {
           content: 'hello in real time',
           clientMessageId: id,
           createdAt: reply.data.createdAt,
+          seen: false,
         },
       },
     })

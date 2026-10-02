@@ -31,6 +31,10 @@ describe('public room', () => {
         participants: [],
         createdAt: expect.any(String),
         lastMessageAt: expect.toBeOneOf([null, expect.any(String)]),
+        lastMessage: expect.toBeOneOf([
+          null,
+          expect.objectContaining({ preview: expect.any(String) }),
+        ]),
       },
     ])
     expect(await publicRoomId(bob)).toBe(rooms[0].id)
@@ -83,6 +87,7 @@ describe('POST /api/conversations/private', () => {
       ]),
       createdAt: expect.any(String),
       lastMessageAt: null,
+      lastMessage: null,
     })
     expect(conversation.participants).toHaveLength(2)
 

@@ -5,7 +5,7 @@ import { useAuth } from './authContext.js'
 import { describeAuthError, validateLogin } from './validation.js'
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { login, notice } = useAuth()
   const [values, setValues] = useState({ email: '', password: '' })
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState(null)
@@ -37,6 +37,11 @@ export function LoginPage() {
   return (
     <section className="card auth-card" aria-labelledby="login-heading">
       <h2 id="login-heading">Sign in</h2>
+      {notice === 'expired' && (
+        <p role="status" className="notice">
+          Your session has ended. Please sign in again.
+        </p>
+      )}
       <form onSubmit={handleSubmit} noValidate>
         {formError && (
           <p role="alert" className="form-error">

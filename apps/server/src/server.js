@@ -98,7 +98,12 @@ export async function startServer({ config, logger, socket = {} }) {
     logger,
     middlewares:
       socket.middlewares ??
-      createDefaultMiddlewares({ ...auth, logger, limits: config.socket }),
+      createDefaultMiddlewares({
+        ...auth,
+        logger,
+        limits: config.socket,
+        trustProxy: config.trustProxy,
+      }),
     handlers:
       socket.handlers ??
       createDefaultHandlers({

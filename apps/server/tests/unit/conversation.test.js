@@ -207,10 +207,38 @@ describe('public representations', () => {
       ],
       createdAt: createdAt.toISOString(),
       lastMessageAt: null,
+      lastMessage: null,
     })
   })
 
-  it('message exposes sender id/name and content, not read state', () => {
+  it('conversation previews the latest message with the sender name', () => {
+    const names = new Map([[String(bob), 'Bob']])
+    const at = new Date('2026-01-02T00:00:00Z')
+    const presented = toPublicConversation(
+      {
+        _id: 'c1',
+        type: 'private',
+        participantIds: [alice, bob],
+        createdAt,
+        lastMessageAt: at,
+        lastMessage: {
+          messageId: 'm9',
+          senderId: bob,
+          preview: 'hey',
+          createdAt: at,
+        },
+      },
+      names,
+    )
+    expect(presented.lastMessage).toEqual({
+      id: 'm9',
+      sender: { id: String(bob), name: 'Bob' },
+      preview: 'hey',
+      createdAt: at.toISOString(),
+    })
+  })
+
+  it('message exposes sender id/name, content and a seen flag, never the reader list', () => {
     expect(
       toPublicMessage(
         {
@@ -222,6 +250,7 @@ describe('public representations', () => {
           createdAt,
         },
         'Alice',
+        'private',
       ),
     ).toEqual({
       id: 'm1',
@@ -230,7 +259,24 @@ describe('public representations', () => {
       content: '<b>hi</b>',
       clientMessageId: null,
       createdAt: createdAt.toISOString(),
+      seen: false,
     })
+  })
+
+  it('seen is true once another participant read it, null in the public room', () => {
+    const read = {
+      _id: 'm1',
+      conversationId: 'c1',
+      senderId: alice,
+      content: 'x',
+      readBy: [alice, bob],
+      createdAt,
+    }
+    expect(toPublicMessage(read, 'Alice', 'private').seen).toBe(true)
+    expect(toPublicMessage(read, 'Alice', 'public').seen).toBeNull()
+    expect(
+      toPublicMessage({ ...read, readBy: undefined }, 'Alice', 'private').seen,
+    ).toBe(false)
   })
 
   it('directory users expose only id and name', () => {

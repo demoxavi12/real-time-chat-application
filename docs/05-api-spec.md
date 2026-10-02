@@ -8,11 +8,11 @@ Base path:
 
 ## Implementation status
 
-| Endpoint group                                                        | Status                                                                                         |
-| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Health (`/health`, `/ready`)                                          | **Implemented (Phase 0)**, integration-tested                                                  |
-| Auth (`/api/auth/*`)                                                  | **Implemented (Phase 1)**, unit/integration/security/E2E-tested                                |
-| Users, Conversations, Messages (`/api/users`, `/api/conversations/*`) | **Implemented (Phase 2)**, unit/integration/security/E2E-tested; real-time delivery is Phase 3 |
+| Endpoint group                                                        | Status                                                                                                                                  |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Health (`/health`, `/ready`)                                          | **Implemented (Phase 0)**, integration-tested                                                                                           |
+| Auth (`/api/auth/*`)                                                  | **Implemented (Phase 1)**, unit/integration/security/E2E-tested                                                                         |
+| Users, Conversations, Messages (`/api/users`, `/api/conversations/*`) | **Implemented (Phase 2)**, unit/integration/security/E2E-tested; live delivery over Socket.IO (Phase 3); `lastMessage`/`seen` (Phase 4) |
 
 Cross-cutting behaviour that is already implemented for every route:
 
@@ -237,9 +237,18 @@ Conversation shape:
     { "id": "65f0…b", "name": "Bob" }
   ],
   "createdAt": "2026-10-01T12:00:00.000Z",
-  "lastMessageAt": "2026-10-01T12:05:00.000Z"
+  "lastMessageAt": "2026-10-01T12:05:00.000Z",
+  "lastMessage": {
+    "id": "65f0…",
+    "sender": { "id": "65f0…a", "name": "Alice" },
+    "preview": "Hello Bob",
+    "createdAt": "2026-10-01T12:05:00.000Z"
+  }
 }
 ```
+
+`lastMessage` is `null` until the first message. `preview` is a single line
+of at most 120 characters (plain text — render it as text, never HTML).
 
 The public room has `type: "public"`, `name: "General"` and
 `participants: []` (it is open to every authenticated user). Private
@@ -303,9 +312,14 @@ Message shape:
   "sender": { "id": "65f0…", "name": "Alice" },
   "content": "Hello",
   "clientMessageId": "6f1c…",
-  "createdAt": "2026-10-01T12:05:00.000Z"
+  "createdAt": "2026-10-01T12:05:00.000Z",
+  "seen": false
 }
 ```
+
+`seen` (private conversations only): `true` once someone other than the
+sender has read the message; `false` before that. Always `null` in the public
+room, where reads are not stored. Who read it (`readBy`) is never exposed.
 
 `sender.name` is `null` if the sender's account no longer exists. Content is
 plain text and must be rendered as text, never as HTML.

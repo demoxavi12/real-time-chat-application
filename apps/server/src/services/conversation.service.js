@@ -33,6 +33,17 @@ export function toPublicConversation(conversation, names) {
     })),
     createdAt: conversation.createdAt.toISOString(),
     lastMessageAt: conversation.lastMessageAt?.toISOString() ?? null,
+    lastMessage: conversation.lastMessage
+      ? {
+          id: String(conversation.lastMessage.messageId),
+          sender: {
+            id: String(conversation.lastMessage.senderId),
+            name: names.get(String(conversation.lastMessage.senderId)) ?? null,
+          },
+          preview: conversation.lastMessage.preview,
+          createdAt: conversation.lastMessage.createdAt.toISOString(),
+        }
+      : null,
   }
 }
 
@@ -40,7 +51,12 @@ export function createConversationService({ conversations, users }) {
   async function present(list) {
     const names = await namesById(
       users,
-      list.flatMap((conversation) => conversation.participantIds),
+      list.flatMap((conversation) => [
+        ...conversation.participantIds,
+        ...(conversation.lastMessage
+          ? [conversation.lastMessage.senderId]
+          : []),
+      ]),
     )
     return list.map((conversation) => toPublicConversation(conversation, names))
   }

@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useAuth } from '../auth/authContext.js'
 import { describeChatError } from './chatModel.js'
 
 /** Find another user and open (or reuse) the private conversation with them. */
 export function UserSearch({ chatApi, onOpened }) {
+  const { handleAuthError } = useAuth()
   const [query, setQuery] = useState('')
   const [state, setState] = useState({ status: 'idle', users: [], error: null })
   const [openingId, setOpeningId] = useState(null)
@@ -16,6 +18,7 @@ export function UserSearch({ chatApi, onOpened }) {
       const page = await chatApi.searchUsers({ q, limit: 20 })
       setState({ status: 'done', users: page.users, error: null })
     } catch (error) {
+      if (handleAuthError(error)) return
       setState({ status: 'error', users: [], error })
     }
   }
@@ -25,6 +28,7 @@ export function UserSearch({ chatApi, onOpened }) {
     try {
       onOpened(await chatApi.openPrivateConversation(user.id))
     } catch (error) {
+      if (handleAuthError(error)) return
       setState((s) => ({ ...s, status: 'error', error }))
     } finally {
       setOpeningId(null)

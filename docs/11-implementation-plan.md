@@ -2,13 +2,16 @@
 
 ## Status
 
-| Phase                                   | State                                                                                                                                                                                                                     |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 — Foundation                          | **Done** (commit `cce0410`)                                                                                                                                                                                               |
-| 1 — Backend foundation + authentication | **Done**: auth API, User model, sessions, frontend auth UI, Socket.IO handshake auth, tests (see below)                                                                                                                   |
-| 2 — Conversation/message domain         | **Done**: models + indexes, users directory, public room, private conversations, REST messages, cursor history, authorization, minimal REST chat UI, tests                                                                |
-| 3 — Socket.IO                           | **Done**: authenticated sockets, room authorization, message:send/ack/broadcast with dedup, conversation updates, presence, typing, read state, revocation, rate limits, reconnect/resync, frontend realtime layer, tests |
-| 4–7                                     | Not started                                                                                                                                                                                                               |
+| Phase                                   | State                                                                                                                                                                                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 — Foundation                          | **Done** (commit `cce0410`)                                                                                                                                                                                                                |
+| 1 — Backend foundation + authentication | **Done**: auth API, User model, sessions, frontend auth UI, Socket.IO handshake auth, tests (see below)                                                                                                                                    |
+| 2 — Conversation/message domain         | **Done**: models + indexes, users directory, public room, private conversations, REST messages, cursor history, authorization, minimal REST chat UI, tests                                                                                 |
+| 3 — Socket.IO                           | **Done**: authenticated sockets, room authorization, message:send/ack/broadcast with dedup, conversation updates, presence, typing, read state, revocation, rate limits, reconnect/resync, frontend realtime layer, tests                  |
+| 4 — Frontend UX                         | **Done**: list previews/activity time/presence, grouped messages with day dividers, Sent/Seen, scroll management + "New messages", mobile single-pane layout with back navigation, session-expiry notice, focus management, reduced motion |
+| 5 — E2E                                 | **Done**: 10+ cross-user flows on desktop + Pixel 7 (incl. send failure → retry, duplicate send, mobile navigation, session expiry, 320px/1920px), stress-tested with `--repeat-each=5`                                                    |
+| 6 — Hardening                           | **Done**: `TRUST_PROXY` (REST + sockets), https-only production origins, 0 audit vulnerabilities, secret scan, explain-plan index tests, graceful shutdown, failure-path tests                                                             |
+| 7 — Finalization                        | **Done**: README and all docs synchronized, ADR-034–036, final `npm run verify`                                                                                                                                                            |
 
 ## Phase 0 — Foundation
 

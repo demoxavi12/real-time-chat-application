@@ -1,4 +1,5 @@
 import { isValidObjectId } from 'mongoose'
+import { previewOf } from '../utils/preview.js'
 import {
   PUBLIC_ROOM_NAME,
   privateKeyFor,
@@ -82,11 +83,30 @@ export function createConversationRepository({ Conversation }) {
         .exec()
     },
 
-    /** Moves activity forward only ($max), so concurrent sends never regress it. */
-    recordMessage(conversationId, at) {
+    /**
+     * Records a new message as the conversation's latest activity and
+     * preview. Conditional on being newer, so concurrent sends can never move
+     * the preview or the sort key backwards.
+     */
+    recordMessage(conversationId, message) {
+      const at = message.createdAt
       return Conversation.updateOne(
-        { _id: conversationId },
-        { $max: { lastMessageAt: at, lastActivityAt: at } },
+        {
+          _id: conversationId,
+          $or: [{ lastMessageAt: null }, { lastMessageAt: { $lte: at } }],
+        },
+        {
+          $set: {
+            lastMessageAt: at,
+            lastActivityAt: at,
+            lastMessage: {
+              messageId: message._id,
+              senderId: message.senderId,
+              preview: previewOf(message.content),
+              createdAt: at,
+            },
+          },
+        },
       ).exec()
     },
   }

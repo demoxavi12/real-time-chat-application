@@ -9,6 +9,12 @@ const base = {
   JWT_SECRET: randomBytes(48).toString('hex'),
 }
 
+// Production requires https client origins.
+const production = {
+  NODE_ENV: 'production',
+  CLIENT_ORIGIN: 'https://chat.example.com',
+}
+
 function issues(env) {
   try {
     loadConfig({ ...base, ...env })
@@ -106,15 +112,11 @@ describe('authentication configuration', () => {
   })
 
   it('uses Secure cookies by default in production', () => {
-    expect(
-      loadConfig({ ...base, NODE_ENV: 'production' }).auth.cookieSecure,
-    ).toBe(true)
+    expect(loadConfig({ ...base, ...production }).auth.cookieSecure).toBe(true)
   })
 
   it('refuses non-Secure cookies in production', () => {
-    expect(
-      issues({ NODE_ENV: 'production', AUTH_COOKIE_SECURE: 'false' }),
-    ).toEqual([
+    expect(issues({ ...production, AUTH_COOKIE_SECURE: 'false' })).toEqual([
       'AUTH_COOKIE_SECURE: must not be false in production (cookies must be Secure)',
     ])
   })
@@ -132,5 +134,35 @@ describe('authentication configuration', () => {
     expect(
       issues({ AUTH_COOKIE_SAMESITE: 'none', AUTH_COOKIE_SECURE: 'true' }),
     ).toEqual([])
+  })
+})
+
+describe('production and proxy configuration', () => {
+  it('requires https client origins in production', () => {
+    expect(
+      issues({
+        NODE_ENV: 'production',
+        CLIENT_ORIGIN: 'http://chat.example.com',
+      }),
+    ).toEqual(['CLIENT_ORIGIN: must use https:// origins in production'])
+    expect(
+      issues({
+        NODE_ENV: 'production',
+        CLIENT_ORIGIN: 'https://a.example.com,http://b.example.com',
+      }),
+    ).toEqual(['CLIENT_ORIGIN: must use https:// origins in production'])
+    expect(issues(production)).toEqual([])
+  })
+
+  it('allows http origins outside production', () => {
+    expect(issues({ CLIENT_ORIGIN: 'http://localhost:5173' })).toEqual([])
+  })
+
+  it('parses TRUST_PROXY hops (default 0)', () => {
+    expect(loadConfig(base).trustProxy).toBe(0)
+    expect(loadConfig({ ...base, TRUST_PROXY: '2' }).trustProxy).toBe(2)
+    for (const value of ['-1', '11', 'yes', '1.5']) {
+      expect(issues({ TRUST_PROXY: value }).join()).toMatch(/^TRUST_PROXY: /)
+    }
   })
 })

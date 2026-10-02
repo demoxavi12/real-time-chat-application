@@ -1,15 +1,26 @@
+import proxyaddr from 'proxy-addr'
 import { ErrorCodes } from '../../utils/AppError.js'
 import { createWindowCounter } from '../rateLimit.js'
 
 /**
  * Limits new Socket.IO connections per client IP and window (runs before
- * authentication, so floods never reach the database). Behind a reverse
- * proxy the proxy's address is seen until trust-proxy handling is added.
+ * authentication, so floods never reach the database). With `trustProxy`
+ * hops configured the client address is taken from X-Forwarded-For exactly
+ * like Express does for REST (proxy-addr); otherwise the socket peer address.
  */
-export function createConnectionRateLimit({ windowMs, connectionLimit }) {
+export function createConnectionRateLimit({
+  windowMs,
+  connectionLimit,
+  trustProxy = 0,
+}) {
   const counter = createWindowCounter({ windowMs, max: connectionLimit })
+  const trust = (_address, hop) => hop < trustProxy
   return (socket, next) => {
-    if (counter.consume(socket.handshake.address)) {
+    const address =
+      trustProxy > 0
+        ? proxyaddr(socket.request, trust)
+        : socket.handshake.address
+    if (counter.consume(address)) {
       next()
       return
     }

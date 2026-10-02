@@ -54,6 +54,7 @@ describe('POST /api/conversations/:id/messages', () => {
       content: 'Hello Bob!',
       clientMessageId: null,
       createdAt: expect.any(String),
+      seen: false,
     })
     const stored = await server.models.Message.findById(
       res.body.data.message.id,

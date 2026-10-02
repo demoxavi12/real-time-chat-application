@@ -153,3 +153,46 @@ App (AuthProvider, routes)
   in the conversation header and "(online)" in the list.
 - Connection indicator in the account bar: Live / Connecting… /
   Reconnecting… / Offline.
+
+### Production UX (Phase 4)
+
+- **Conversation list:** each entry shows kind, title, "(online)" with a
+  presence dot (text, not colour only), a compact activity time ("now",
+  "5m", "3h", date) and a one-line preview ("You: …", "Bob: …", "No messages
+  yet") from the server's `lastMessage`; the preview updates live from
+  `conversation:update` and locally after my own sends. Links are named by
+  the title only; kind and preview are the accessible description. The
+  loading message shows only while the list is empty (refreshes keep the
+  list visible). Items are memoized.
+- **Messages:** mine ("You", right-aligned) vs. theirs; consecutive messages
+  from the same sender within five minutes on the same day are grouped
+  (sender visually hidden but still announced); day dividers ("Today",
+  "Yesterday", date); time per group. My latest message shows **Sent** or
+  **Seen** — "Seen" comes from the server's `seen` flag (so it survives a
+  reload) or a live `message:read:update`; the public room only ever shows
+  "Sent".
+- **Scrolling (`useChatScroll`):** opens at the newest message; follows new
+  messages while near the bottom and always after my own sends; while I read
+  history a "New messages ↓" button appears instead of jumping; loading
+  older messages keeps the visible messages in place.
+- **History container:** `role="log"` with polite live announcements of
+  additions, keyboard-focusable and scrollable.
+- **Sending:** a synchronous in-flight guard means a double Enter/click sends
+  once (the server's `clientMessageId` dedup is the second line of defence).
+- **Session expiry:** any `401` from a data request (`handleAuthError`)
+  re-checks the session; if a previously signed-in session is gone the login
+  page says "Your session has ended. Please sign in again." (not shown after
+  an explicit sign-out or to first-time visitors).
+- **Focus:** opening a conversation moves focus to its heading
+  (`tabIndex=-1`); visible focus rings throughout.
+- **Responsive:** at ≤ 48rem the list and the conversation are separate
+  views (`.conversation-open` on the layout); the conversation has a "Back to
+  conversations" link; the history height uses `dvh` and the composer is
+  sticky so it stays reachable with the on-screen keyboard; long words wrap
+  (`overflow-wrap: anywhere`), so there is no horizontal scrolling down to
+  320px. Large screens show both panes side by side. Touch targets are at
+  least 44px on small screens.
+- **Reduced motion:** `prefers-reduced-motion: reduce` disables transitions,
+  animations and smooth scrolling.
+- Verified by `tests/chatUx.test.jsx` (Vitest) and `e2e/ux.spec.js`
+  (Playwright, including 320px and 1920px viewports and the Pixel 7 project).

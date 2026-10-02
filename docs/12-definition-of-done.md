@@ -37,6 +37,13 @@ A task is DONE only when all applicable conditions are true.
 - [ ] Sensitive data excluded from logs/responses.
 - [ ] CORS/security configuration reviewed.
 
+### UI checks (from Phase 4)
+
+- [ ] New UI works at 320px and on large screens without horizontal scrolling (E2E asserts overflow).
+- [ ] Interactive elements have accessible names; state is never conveyed by colour alone; motion respects `prefers-reduced-motion`.
+- [ ] Data hooks pass request errors to `handleAuthError` so an expired session returns to sign-in.
+- [ ] New tests for behaviour are mutation-checked: they fail when the behaviour is removed.
+
 ### Real-time checks (from Phase 3)
 
 - [ ] New socket events are registered through `on()` (validation, acks, rate limits) and authorize with the same service rule as REST.

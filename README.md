@@ -3,14 +3,26 @@
 A full-stack real-time messaging platform built with React, Node.js,
 Express.js, MongoDB, Socket.IO and JWT.
 
-> **Status: Phase 3 — real-time messaging complete.** Users can register,
-> find each other, chat privately or in the public room, and see messages,
-> typing, read receipts and presence live over Socket.IO, with MongoDB as the
-> durable source of truth. Not implemented yet: file sharing, notifications,
-> deployment. See the [roadmap](#roadmap).
+> **Status: complete (Phases 0–7).** Users can register, find each other,
+> chat privately or in the public room, and see messages, previews, typing,
+> read receipts and presence live over Socket.IO, on desktop and mobile, with
+> MongoDB as the durable source of truth. Out of scope: file sharing, push
+> notifications, hosted deployment. See the [roadmap](#roadmap).
 
 ## What exists today
 
+- **Production chat UX** (Phase 4)
+  - conversation list with latest-message preview ("You: …"), activity time,
+    presence and live reordering
+  - messages grouped by sender and time with day dividers, "You" vs. others,
+    **Sent / Seen** on my latest message (Seen survives reloads)
+  - smart scrolling: follows new messages at the bottom, otherwise a
+    "New messages ↓" button; older history loads without jumping
+  - mobile: one pane at a time with "Back to conversations", keyboard-safe
+    sticky composer, no horizontal overflow down to 320px
+  - "Your session has ended" notice when a session expires mid-use;
+    double-send protection; focus management, screen-reader labels and
+    `prefers-reduced-motion` support
 - **Real-time messaging** (Phase 3, Socket.IO)
   - authenticated sockets (same HttpOnly session as REST); logout and session
     end disconnect live sockets
@@ -64,7 +76,7 @@ Express.js, MongoDB, Socket.IO and JWT.
   - structured JSON logging with automatic redaction of secrets
 - **Frontend** (`apps/client`): React 19 + Vite 8 + React Router
   - validated `VITE_*` configuration (defaults to same-origin)
-  - REST client boundary (envelope-aware) and Socket.IO client boundary (not connected yet)
+  - REST client boundary (envelope-aware) and a single shared Socket.IO connection (`RealtimeProvider`)
   - routes: `/` and `/conversations/:id` (protected chat), `/login`, `/register`,
     `/status` (public system status)
 - **Automation**: Prettier, ESLint, Vitest (unit, integration, Socket.IO),
@@ -209,14 +221,27 @@ From [docs/11-implementation-plan.md](docs/11-implementation-plan.md):
 - [x] **Phase 1** — Authentication: user model, registration/login, JWT cookie sessions with revocation, auth UI, protected routes, Socket.IO handshake auth
 - [x] **Phase 2** — Conversations and messages: models and indexes, user directory, public room, private conversations, REST messaging, cursor pagination, authorization, minimal REST chat UI
 - [x] **Phase 3** — Real-time messaging: authenticated sockets, room authorization, persisted-then-broadcast messages with acks and dedup, live conversation list, typing, read receipts, presence, reconnect/resync, revocation, rate limits
-- [ ] **Phase 4** — Frontend chat UI
-- [ ] **Phase 5** — E2E coverage of chat flows
-- [ ] **Phase 6** — Hardening
-- [ ] **Phase 7** — Finalization and deployment
+- [x] **Phase 4** — Production chat UX: previews, grouping, Sent/Seen, scroll management, mobile layout, session expiry, accessibility
+- [x] **Phase 5** — E2E: send failure + retry, duplicate send, mobile and 320px/1920px layouts, session expiry, live previews; stress-tested
+- [x] **Phase 6** — Hardening: trusted-proxy configuration, https-only production origins, dependency audit, secret scan, index explain tests
+- [x] **Phase 7** — Finalization: documentation synchronized, final verification
 
 ## Deployment
 
-Not configured yet. No deployment infrastructure is claimed.
+No hosting is set up and none is claimed. The app is production-ready to
+deploy as two parts:
+
+- **Server:** `npm ci && npm start -w apps/server` with `NODE_ENV=production`
+  and the variables in [docs/13-env-and-config.md](docs/13-env-and-config.md).
+  Production startup refuses unsafe settings: `CLIENT_ORIGIN` must be
+  `https://`, cookies must be Secure, and `JWT_SECRET` must be a real secret
+  of 32+ characters. Behind a reverse proxy or load balancer, set
+  `TRUST_PROXY` to the number of proxy hops. Enable WebSocket upgrades on the
+  proxy. Run a single instance: presence and typing are in memory (ADR-031).
+- **Client:** `npm run build -w apps/client` produces static files in
+  `apps/client/dist`; set `VITE_API_URL`/`VITE_SOCKET_URL` at build time
+  when the API is on another origin.
+- Probes: `GET /health` (liveness) and `GET /ready` (MongoDB ping).
 
 ## Project documentation
 

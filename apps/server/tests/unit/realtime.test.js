@@ -257,7 +257,12 @@ describe('realtime hub', () => {
     type: 'private',
     participantIds: ['u1', 'u2'],
   }
-  const message = { id: 'm1', createdAt: '2026-01-01T00:00:00.000Z' }
+  const message = {
+    id: 'm1',
+    sender: { id: 'u1', name: 'U One' },
+    content: 'hello\nthere',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  }
 
   it('delivers private messages only to the room and participants', async () => {
     const io = fakeIo()
@@ -284,6 +289,12 @@ describe('realtime hub', () => {
             id: 'c1',
             type: 'private',
             lastMessageAt: message.createdAt,
+            lastMessage: {
+              id: 'm1',
+              sender: { id: 'u1', name: 'U One' },
+              preview: 'hello there',
+              createdAt: message.createdAt,
+            },
           },
         },
       },

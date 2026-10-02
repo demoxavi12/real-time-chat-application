@@ -25,6 +25,8 @@ export const JSON_BODY_LIMIT = '100kb'
 export function createApp({ config, logger, readiness, auth, chat, realtime }) {
   const app = express()
   app.disable('x-powered-by')
+  // Behind N reverse proxies, req.ip is the client (used by rate limits).
+  app.set('trust proxy', config.trustProxy > 0 ? config.trustProxy : false)
 
   app.use(requestId())
   app.use(requestLogger(logger))

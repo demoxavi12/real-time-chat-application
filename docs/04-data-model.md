@@ -92,8 +92,15 @@ collection `conversations`:
 | `createdBy`              | ObjectId\|null | Who first opened the private conversation                           |
 | `lastMessageAt`          | Date\|null     | Time of the latest message                                          |
 | `lastActivityAt`         | Date           | Sort key for lists: creation, then each message (moved with `$max`) |
+| `lastMessage`            | Object         | null                                                                | Denormalized latest-message summary for lists (see below) |
 | `createdAt`, `updatedAt` | Date           | timestamps                                                          |
 
+- `lastMessage` is `{ messageId, senderId, preview, createdAt }` (`preview`:
+  one line, at most 120 characters, ending in `…` when truncated). It is
+  written in the same conditional update as `lastMessageAt`
+  (`lastMessageAt` null or ≤ the new message's time), so a slower,
+  older write can never overwrite a newer preview. It is a cache of the
+  `messages` collection, which stays the source of truth (ADR-034).
 - The schema enforces the shape (exactly two distinct participants and a
   matching `privateKey` for private; no participants for public) and is
   `strict: 'throw'`.
@@ -151,7 +158,9 @@ collection `messages`:
   - No `{ senderId, createdAt }` index: no query needs it yet.
 - Reads are recorded only in private conversations (at most two entries);
   in the public room `readBy` would grow with every reader, so public reads
-  are not stored (ADR-030). `readBy` is not part of the REST message shape.
+  are not stored (ADR-030). `readBy` itself is never exposed; the message
+  shape carries a derived `seen` flag instead (private: read by someone other
+  than the sender; public: `null`).
 
 Recommended indexes:
 

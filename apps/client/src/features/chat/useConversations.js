@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '../auth/authContext.js'
 import { useRealtimeEvent } from '../realtime/realtimeContext.js'
-import { sortConversations } from './chatModel.js'
+import { lastMessageFrom, sortConversations } from './chatModel.js'
 
 const PAGE_SIZE = 50
 
@@ -9,6 +10,7 @@ const PAGE_SIZE = 50
  * `conversation:update` events, and silently refetched after a reconnect.
  */
 export function useConversations(chatApi) {
+  const { handleAuthError } = useAuth()
   const [state, setState] = useState({
     status: 'loading',
     conversations: [],
@@ -30,12 +32,12 @@ export function useConversations(chatApi) {
             error: null,
           }),
         (error) => {
-          if (error?.name === 'AbortError') return
+          if (error?.name === 'AbortError' || handleAuthError(error)) return
           setState((s) => ({ ...s, status: 'error', error }))
         },
       )
     return () => controller.abort()
-  }, [chatApi, attempt])
+  }, [chatApi, attempt, handleAuthError])
 
   const reload = useCallback(() => {
     setState((s) => ({ ...s, status: 'loading' }))
@@ -78,7 +80,11 @@ export function useConversations(chatApi) {
       conversations: sortConversations(
         s.conversations.map((c) =>
           c.id === message.conversationId
-            ? { ...c, lastMessageAt: message.createdAt }
+            ? {
+                ...c,
+                lastMessageAt: message.createdAt,
+                lastMessage: lastMessageFrom(message),
+              }
             : c,
         ),
       ),

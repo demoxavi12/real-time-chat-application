@@ -29,6 +29,95 @@ export function mergeMessages(existing, incoming) {
   )
 }
 
+const GROUP_WINDOW_MS = 5 * 60_000
+const PREVIEW_MAX_LENGTH = 120
+
+const dayKey = (iso) => new Date(iso).toDateString()
+
+/** "Today", "Yesterday" or a short date, in the viewer's locale. */
+export function dayLabel(iso, now = new Date()) {
+  const day = new Date(iso)
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (day.toDateString() === now.toDateString()) return 'Today'
+  if (day.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return day.toLocaleDateString(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    ...(day.getFullYear() !== now.getFullYear() && { year: 'numeric' }),
+  })
+}
+
+export function timeOfDay(iso) {
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+/** Compact time for conversation lists: "now", "5m", "3h", or a date. */
+export function shortTime(iso, now = Date.now()) {
+  const elapsed = Math.max(0, now - Date.parse(iso))
+  if (elapsed < 60_000) return 'now'
+  if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m`
+  if (elapsed < 86_400_000) return `${Math.floor(elapsed / 3_600_000)}h`
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
+/**
+ * Annotates chronologically ordered messages for rendering: a day label on
+ * the first message of each day, and `grouped` when the previous message is
+ * from the same sender within five minutes on the same day.
+ */
+export function groupMessages(messages, now = new Date()) {
+  return messages.map((message, index) => {
+    const previous = messages[index - 1]
+    const newDay =
+      !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt)
+    const grouped =
+      !newDay &&
+      previous.sender.id === message.sender.id &&
+      Date.parse(message.createdAt) - Date.parse(previous.createdAt) <
+        GROUP_WINDOW_MS
+    return {
+      message,
+      grouped,
+      dayLabel: newDay ? dayLabel(message.createdAt, now) : null,
+    }
+  })
+}
+
+/** Same rule as the server's preview: one line, bounded. */
+export function previewOf(content) {
+  const line = String(content).replace(/\s+/g, ' ').trim()
+  return line.length > PREVIEW_MAX_LENGTH
+    ? `${line.slice(0, PREVIEW_MAX_LENGTH - 1)}…`
+    : line
+}
+
+/** The conversation list's second line ("You: …", "Bob: …"). */
+export function previewText(conversation, currentUserId) {
+  const last = conversation.lastMessage
+  if (!last) return 'No messages yet'
+  const who =
+    last.sender.id === currentUserId ? 'You' : (last.sender.name ?? 'Unknown')
+  return `${who}: ${last.preview}`
+}
+
+/** Latest-message summary built locally from a message I just sent. */
+export function lastMessageFrom(message) {
+  return {
+    id: message.id,
+    sender: message.sender,
+    preview: previewOf(message.content),
+    createdAt: message.createdAt,
+  }
+}
+
 /** Idempotency key for a send; reused if the same draft is retried. */
 export function newClientMessageId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()

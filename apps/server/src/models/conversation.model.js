@@ -29,6 +29,20 @@ export const conversationSchema = new Schema(
     privateKey: { type: String },
     createdBy: { type: Schema.Types.ObjectId, default: null },
     lastMessageAt: { type: Date, default: null },
+    // Denormalized preview of the newest message (for conversation lists,
+    // without a per-conversation message query).
+    lastMessage: {
+      type: new Schema(
+        {
+          messageId: { type: Schema.Types.ObjectId, required: true },
+          senderId: { type: Schema.Types.ObjectId, required: true },
+          preview: { type: String, required: true, maxlength: 120 },
+          createdAt: { type: Date, required: true },
+        },
+        { _id: false, strict: 'throw' },
+      ),
+      default: null,
+    },
     // Sort key for conversation lists: createdAt, then each new message.
     lastActivityAt: { type: Date, required: true, default: () => new Date() },
   },

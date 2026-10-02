@@ -52,6 +52,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       ...validEnv,
       NODE_ENV: 'production',
+      CLIENT_ORIGIN: 'https://chat.example.com',
       PORT: '8080',
       LOG_LEVEL: 'warn',
       RATE_LIMIT_WINDOW_MS: '60000',
@@ -170,6 +171,7 @@ describe('loadConfig', () => {
         loadConfig({
           ...validEnv,
           NODE_ENV: 'production',
+          CLIENT_ORIGIN: 'https://chat.example.com',
           MONGODB_URI: 'mongodb+srv://cluster0.example.net/chat',
         }),
       ).not.toThrow()

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useAuth } from '../auth/authContext.js'
 import { useRealtime } from '../realtime/realtimeContext.js'
 import {
   describeChatError,
@@ -18,10 +19,13 @@ const TYPING_IDLE_MS = 3000
  */
 export function MessageComposer({ chatApi, conversationId, onSent }) {
   const realtime = useRealtime()
+  const { handleAuthError } = useAuth()
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
   const pending = useRef(null)
+  // Synchronous guard: a double Enter/click lands before `sending` re-renders.
+  const inFlight = useRef(false)
   const typing = useRef({ active: false, timer: null })
 
   const { startTyping, stopTyping } = realtime
@@ -63,7 +67,7 @@ export function MessageComposer({ chatApi, conversationId, onSent }) {
   }
 
   async function send() {
-    if (sending) return
+    if (inFlight.current) return
     const { text, error: invalid } = validateMessage(content)
     if (invalid) {
       setError(invalid)
@@ -76,6 +80,7 @@ export function MessageComposer({ chatApi, conversationId, onSent }) {
       content: text,
       clientMessageId: pending.current.clientMessageId,
     }
+    inFlight.current = true
     setSending(true)
     setError(null)
     stopTypingNow()
@@ -87,12 +92,14 @@ export function MessageComposer({ chatApi, conversationId, onSent }) {
       setContent('')
       onSent(message)
     } catch (sendError) {
+      if (handleAuthError(sendError)) return
       setError(
         sendError?.code === 'ACK_TIMEOUT'
           ? 'No confirmation from the server yet. Send again to retry safely.'
           : describeChatError(sendError),
       )
     } finally {
+      inFlight.current = false
       setSending(false)
     }
   }

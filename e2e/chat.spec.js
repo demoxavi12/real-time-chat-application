@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import {
   API_ORIGIN,
   createUserViaApi,
+  showConversationList,
   signInViaUi,
   uniqueUser,
 } from './support.js'
@@ -51,6 +52,7 @@ test.describe('conversations and messages (durable REST flows)', () => {
       ).toBeVisible()
 
       await sendMessage(a.page, 'Hi Bob, this is Alice.')
+      await showConversationList(a.page)
       await expect(
         conversations(a.page).getByRole('link', { name: new RegExp(bob.name) }),
       ).toBeVisible()
@@ -71,6 +73,9 @@ test.describe('conversations and messages (durable REST flows)', () => {
       }
 
       // Alice also gets the reply via an explicit Refresh (REST resync)...
+      await conversations(a.page)
+        .getByRole('link', { name: new RegExp(bob.name) })
+        .click()
       await a.page
         .getByRole('region', { name: bob.name })
         .getByRole('button', { name: 'Refresh' })
@@ -90,6 +95,10 @@ test.describe('conversations and messages (durable REST flows)', () => {
       await a.page.getByRole('button', { name: 'Search' }).click()
       await a.page.getByRole('button', { name: `Message ${bob.name}` }).click()
       await expect(a.page).toHaveURL(conversationUrl)
+      await expect(
+        a.page.getByRole('heading', { name: bob.name }),
+      ).toBeVisible()
+      await showConversationList(a.page)
       await expect(
         conversations(a.page).getByRole('link', { name: new RegExp(bob.name) }),
       ).toHaveCount(1)

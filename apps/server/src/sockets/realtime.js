@@ -1,3 +1,4 @@
+import { previewOf } from '../utils/preview.js'
 import { conversationRoom, sessionRoom, userRoom } from './rooms.js'
 
 /**
@@ -45,8 +46,16 @@ export function createRealtimeHub({ conversationService, logger }) {
           'message:new',
           { message },
         )
+        // The conversation document predates this message: describe the new
+        // latest activity from the canonical message itself.
         await emitConversationUpdate(conversation, {
           lastMessageAt: message.createdAt,
+          lastMessage: {
+            id: message.id,
+            sender: message.sender,
+            preview: previewOf(message.content),
+            createdAt: message.createdAt,
+          },
         })
       } catch (error) {
         logger.error('realtime message notification failed', {

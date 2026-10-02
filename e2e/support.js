@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { request as playwrightRequest } from '@playwright/test'
+import { expect, request as playwrightRequest } from '@playwright/test'
 
 /** Must match playwright.config.js (backend started by scripts/e2e-backend.js). */
 export const API_ORIGIN = 'http://127.0.0.1:5100'
@@ -45,4 +45,20 @@ export function currentUser(page) {
 export async function sessionCookie(context) {
   const cookies = await context.cookies(API_ORIGIN)
   return cookies.find((cookie) => /^(__Host-)?rtc_session$/.test(cookie.name))
+}
+
+export const conversationNav = (page) =>
+  page.getByRole('navigation', { name: 'Conversations' })
+
+/**
+ * On narrow screens the list and the open conversation are separate views;
+ * this returns to the list (a no-op on desktop, where both are shown).
+ */
+export async function showConversationList(page) {
+  const back = page.getByRole('link', {
+    name: 'Back to conversations',
+    exact: true,
+  })
+  if (await back.isVisible()) await back.click()
+  await expect(conversationNav(page)).toBeVisible()
 }

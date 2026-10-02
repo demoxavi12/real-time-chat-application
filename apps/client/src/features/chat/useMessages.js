@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '../auth/authContext.js'
 import { useRealtime, useRealtimeEvent } from '../realtime/realtimeContext.js'
 import { mergeMessages } from './chatModel.js'
 
@@ -16,6 +17,7 @@ const NOT_FOUND_CODES = new Set(['CONVERSATION_NOT_FOUND', 'VALIDATION_ERROR'])
  */
 export function useMessages(chatApi, conversationId) {
   const { joinConversation } = useRealtime()
+  const { handleAuthError } = useAuth()
   const [state, setState] = useState({
     status: 'loading',
     conversation: null,
@@ -41,7 +43,7 @@ export function useMessages(chatApi, conversationId) {
           error: null,
         })),
       (error) => {
-        if (error?.name === 'AbortError') return
+        if (error?.name === 'AbortError' || handleAuthError(error)) return
         setState((s) => ({
           ...s,
           status: NOT_FOUND_CODES.has(error?.code) ? 'notFound' : 'error',
@@ -50,7 +52,7 @@ export function useMessages(chatApi, conversationId) {
       },
     )
     return () => controller.abort()
-  }, [chatApi, conversationId, attempt])
+  }, [chatApi, conversationId, attempt, handleAuthError])
 
   // Live delivery for this conversation while the view is mounted.
   useEffect(

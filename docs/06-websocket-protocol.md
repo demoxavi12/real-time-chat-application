@@ -81,15 +81,15 @@ validate -> authorize -> messageService.send (MongoDB insert or dedup)
 
 ### Events (server → client)
 
-| Event                 | Payload                                                               | Audience                                                                                                                                               |
-| --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `message:new`         | `{ message }` (canonical REST message shape)                          | sockets in `conversation:<id>` except the sender's socket                                                                                              |
-| `message:ack`         | as the ack `data` above                                               | the sending socket, only when it gave no ack callback                                                                                                  |
-| `conversation:update` | `{ conversation }` (REST conversation shape, updated `lastMessageAt`) | private: both participants' `user:<id>` rooms; public room: all authenticated sockets. Sent on new messages and when a private conversation is created |
-| `typing:update`       | `{ conversationId, userId, typing }`                                  | the room, except the typing socket; `typing: false` is also sent on send, leave and disconnect                                                         |
-| `message:read:update` | `{ conversationId, messageId, userId }`                               | the room; only when `readBy` actually changed                                                                                                          |
-| `presence:update`     | `{ userId, status: "online"                                           | "offline" }`                                                                                                                                           | all authenticated sockets |
-| `error`               | `{ code, message }`                                                   | the socket, for failures of events sent without an ack callback                                                                                        |
+| Event                 | Payload                                                                                         | Audience                                                                                                                                               |
+| --------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `message:new`         | `{ message }` (canonical REST message shape)                                                    | sockets in `conversation:<id>` except the sender's socket                                                                                              |
+| `message:ack`         | as the ack `data` above                                                                         | the sending socket, only when it gave no ack callback                                                                                                  |
+| `conversation:update` | `{ conversation }` (REST conversation shape, updated `lastMessageAt` and `lastMessage` preview) | private: both participants' `user:<id>` rooms; public room: all authenticated sockets. Sent on new messages and when a private conversation is created |
+| `typing:update`       | `{ conversationId, userId, typing }`                                                            | the room, except the typing socket; `typing: false` is also sent on send, leave and disconnect                                                         |
+| `message:read:update` | `{ conversationId, messageId, userId }`                                                         | the room; only when `readBy` actually changed                                                                                                          |
+| `presence:update`     | `{ userId, status }` (`status`: `online` or `offline`)                                          | all authenticated sockets                                                                                                                              |
+| `error`               | `{ code, message }`                                                                             | the socket, for failures of events sent without an ack callback                                                                                        |
 
 ### Presence
 

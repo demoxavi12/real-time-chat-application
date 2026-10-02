@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Outlet, useNavigate } from 'react-router'
+import { Link, Outlet, useMatch, useNavigate } from 'react-router'
 import { useAuth } from '../features/auth/authContext.js'
 import { ConversationList } from '../features/chat/ConversationList.jsx'
 import { UserSearch } from '../features/chat/UserSearch.jsx'
@@ -24,6 +24,8 @@ export function HomePage({ chatApi }) {
   const navigate = useNavigate()
   const list = useConversations(chatApi)
   const { status: connection } = useRealtime()
+  // On narrow screens the list and the open conversation are separate views.
+  const conversationOpen = Boolean(useMatch('/conversations/:conversationId'))
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState(null)
 
@@ -70,7 +72,9 @@ export function HomePage({ chatApi }) {
           </p>
         )}
       </section>
-      <div className="chat-layout">
+      <div
+        className={`chat-layout${conversationOpen ? ' conversation-open' : ''}`}
+      >
         <aside className="card chat-sidebar">
           <ConversationList list={list} currentUserId={user.id} />
           <UserSearch chatApi={chatApi} onOpened={openConversation} />

@@ -97,8 +97,11 @@ Phase 2.
   count, and once throttled even correct credentials get `429` until the window
   resets.
 - `POST /api/auth/register`: every attempt counts (same defaults).
-- Limits are per IP. Behind a reverse proxy Express `trust proxy` must be
-  configured first (Phase 6), otherwise all users share the proxy's IP.
+- Limits are per IP. `TRUST_PROXY` (default `0`) sets how many reverse-proxy
+  hops are trusted: with `0`, `X-Forwarded-For` is ignored, so clients cannot
+  spoof their IP to escape limits; behind N proxies set it to exactly N so the
+  REST limiters and the socket connection limiter see the real client IP
+  (both use the same rule; integration-tested).
 
 ### Validation and errors
 
@@ -132,8 +135,24 @@ appear in log output.
 - Messages are persisted before any broadcast; failures broadcast nothing.
 - Abuse limits: connection attempts per IP, events and sends per socket,
   disconnect after floods of invalid/unknown events, 100 KB packet cap.
-- Socket logs contain socket ids and event names only — never message
+- Socket logs contain socket ids, user ids and event names only — never message
   content, cookies or tokens.
+
+### Production hardening (Phase 6)
+
+- Configuration is validated at startup and production refuses unsafe
+  values: `CLIENT_ORIGIN` must be `https://`, `AUTH_COOKIE_SECURE=false` is
+  rejected (the cookie becomes `__Host-rtc_session`), the `.env.example`
+  JWT placeholder and short secrets are rejected.
+- `npm audit` reports 0 vulnerabilities; `npm run security` (audit at
+  `high` + secret scan) is part of `npm run verify` and CI.
+- Read state exposes only a derived `seen` boolean in private
+  conversations; `readBy` (who read what) is never returned.
+- Conversation previews are plain text, bounded to 120 characters and
+  rendered as text by React (never as HTML).
+- Client: on any `401` from a data request the session is re-checked and
+  the user is returned to sign-in with a "session has ended" notice; no
+  token is ever readable by JavaScript (HttpOnly cookie).
 
 ### Known limitations
 
