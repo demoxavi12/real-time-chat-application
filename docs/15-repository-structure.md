@@ -13,11 +13,12 @@ added as phases need them rather than created empty.
 │   │   │   ├── components/        # shared UI (FormField)
 │   │   │   ├── config/            # validated VITE_* configuration
 │   │   │   ├── features/auth/     # AuthProvider, login/register pages, route guards
-│   │   │   ├── features/chat/     # conversation list, user search, history, composer (REST)
+│   │   │   ├── features/chat/     # conversation list, user search, history, composer, typing/reads
+│   │   │   ├── features/realtime/ # RealtimeProvider, useRealtime, useRealtimeEvent
 │   │   │   ├── features/system/   # backend status page
 │   │   │   ├── pages/             # protected chat shell
 │   │   │   ├── services/api/      # REST boundary (httpClient, systemApi, authApi, chatApi)
-│   │   │   ├── services/socket/   # Socket.IO boundary (socketClient)
+│   │   │   ├── services/socket/   # Socket.IO boundary (socketClient, createAppSocket)
 │   │   │   ├── App.jsx
 │   │   │   ├── index.css
 │   │   │   └── main.jsx
@@ -34,7 +35,7 @@ added as phases need them rather than created empty.
 │       │   ├── repositories/
 │       │   ├── routes/
 │       │   ├── services/
-│       │   ├── sockets/           # server factory, bindEvent, handlers/, middleware/ (handshake auth)
+│       │   ├── sockets/           # server, bindEvent, rooms, realtime hub, presence, rateLimit, handlers/, middleware/
 │       │   ├── utils/
 │       │   ├── validators/
 │       │   ├── app.js             # Express app factory (no I/O)
@@ -47,7 +48,7 @@ added as phases need them rather than created empty.
 │       ├── vitest.config.js       # "unit" and "integration" projects
 │       └── package.json
 ├── docs/
-├── e2e/                           # Playwright specs (foundation, auth, chat) + support.js
+├── e2e/                           # Playwright specs (foundation, auth, chat, realtime) + support.js
 ├── scripts/
 │   ├── check-secrets.js           # secret scan
 │   ├── e2e-backend.js             # backend + ephemeral MongoDB for E2E

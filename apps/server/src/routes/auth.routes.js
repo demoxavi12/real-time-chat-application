@@ -9,8 +9,13 @@ export function createAuthRouter({
   authCookie,
   authenticate,
   rateLimit,
+  realtime,
 }) {
-  const controller = createAuthController({ authService, authCookie })
+  const controller = createAuthController({
+    authService,
+    authCookie,
+    realtime,
+  })
   // Separate counters: registrations count every attempt; logins count only
   // failures, so brute force is throttled while normal sign-ins are not.
   const registerLimiter = createRateLimiter(rateLimit)

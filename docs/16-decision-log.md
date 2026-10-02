@@ -200,6 +200,56 @@ Record meaningful decisions here.
 
 **Decision:** To exercise the data layer end to end, the client gains a conversation list, user search, history with "load older", and a REST composer (nested routes under `/`, `/conversations/:id`). No live updates: users press Refresh or reload. Phase 3 replaces polling-by-hand with Socket.IO events; Phase 4 polishes the UI.
 
+## ADR-027 — Socket.IO authentication reuses the REST session
+
+**Status:** Accepted (Phase 3)
+
+**Decision:** Sockets authenticate at handshake with the same HttpOnly cookie and `authService.authenticate()` as REST (no second token type). Each socket joins `user:<id>` and `session:<sid>`; logout disconnects the session room and a per-socket timer disconnects at the session's absolute end. Events trust only `socket.data.auth`.
+
+**Consequences:** One auth model, one revocation mechanism. A socket stays authorized between handshake and logout/session end without per-event DB checks; a user deleted mid-connection keeps that socket until it closes (known limitation).
+
+## ADR-028 — Persist, then acknowledge and broadcast, through one hub
+
+**Status:** Accepted (Phase 3)
+
+**Decision:** `message:send` validates, authorizes and calls the Phase 2 `messageService.send`; only after it succeeds does the server ack the sender and emit through `sockets/realtime.js` (`message:new` to the conversation room except the sending socket, `conversation:update` to participants). REST sends use the same hub. Notifications never throw and never roll back a stored message. Duplicate retries (`clientMessageId`) are acked with `duplicate: true` and not re-broadcast.
+
+**Consequences:** No phantom messages; at-most-once live delivery per stored message, with REST history as the recovery path (a crash between commit and emit is recovered by the client's resync).
+
+## ADR-029 — Room naming and audiences
+
+**Status:** Accepted (Phase 3)
+
+**Decision:** Room names only from `sockets/rooms.js` with prefixes (`conversation:`, `user:`, `session:`). Joining a conversation room is authorized with the REST rule and is idempotent. Private data never uses `io.emit`; only public-room `conversation:update` and presence go to all authenticated sockets.
+
+## ADR-030 — Read receipts for private conversations only
+
+**Status:** Accepted (Phase 3)
+
+**Decision:** `message:read` adds the reader to `readBy` (`$addToSet`) and emits `message:read:update` only when it changed, for private conversations. In the public room it answers `{ recorded: false }` and stores nothing, because `readBy` would grow with every reader of every message. The client shows "Seen" from live events; REST does not expose `readBy`.
+
+**Consequences:** Bounded documents. Persisted receipts are not shown after a reload yet; unread counts and public-room read markers need a per-user marker model later.
+
+## ADR-031 — In-memory presence and typing (single instance)
+
+**Status:** Accepted (Phase 3)
+
+**Decision:** Presence counts sockets per user in process memory (online while ≥ 1 socket); typing is relayed, never stored, cleared on send/leave/disconnect and expired client-side after 6 s. Presence is visible to all signed-in users and exposed via `presence:update` plus a `presence:list` request (an extension to the documented contract, needed for initial state).
+
+**Consequences:** Consistent with ADR-004; horizontal scaling requires the Socket.IO Redis adapter and a shared presence store.
+
+## ADR-032 — Socket abuse limits
+
+**Status:** Accepted (Phase 3)
+
+**Decision:** Fixed-window counters (`sockets/rateLimit.js`): connections per IP (before auth), events and sends per socket (answered `RATE_LIMITED`), and invalid payloads/unknown events per socket (disconnect). All configurable via `SOCKET_*`. Packets are capped at 100 KB, content at 2000 characters.
+
+## ADR-033 — Client real-time architecture
+
+**Status:** Accepted (Phase 3)
+
+**Decision:** One `RealtimeProvider` owns the socket while authenticated, registers one listener per server event and fans out to `useRealtimeEvent` subscribers; rooms are reference-counted; reconnect → rejoin + local `resync` (REST refetch); server-side disconnect/auth errors → session re-check. Sends use socket acks when connected and REST otherwise, reusing the same `clientMessageId` on retry. No optimistic placeholders: canonical messages are merged by id and ordered by (createdAt, id).
+
 ## Future ADR template
 
 ### ADR-XXX — Title

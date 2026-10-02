@@ -8,6 +8,7 @@ import {
   testConfig,
   unusedAuth,
   unusedChat,
+  unusedRealtime,
 } from '../helpers/testEnv.js'
 
 function buildApp({ checks = { database: async () => {} }, config } = {}) {
@@ -18,6 +19,7 @@ function buildApp({ checks = { database: async () => {} }, config } = {}) {
     readiness: createReadinessService(checks, { timeoutMs: 50 }),
     auth: unusedAuth(appConfig),
     chat: unusedChat(),
+    realtime: unusedRealtime(),
   })
 }
 

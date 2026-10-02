@@ -8,6 +8,7 @@ import {
   publicRoom,
   renderApp,
 } from './helpers.jsx'
+import { fakeSocketFactory } from './fakeSocket.js'
 
 const bob = { id: '65f000000000000000000002', name: 'Bob Example' }
 const privateWithBob = {
@@ -36,7 +37,7 @@ function message(n, sender = alice, conversationId = privateWithBob.id) {
 const signedIn = () => fakeAuthApi({ me: vi.fn(async () => alice) })
 const location = () => screen.getByTestId('location').textContent
 
-function renderChat({ route = '/', chat = {} } = {}) {
+function renderChat({ route = '/', chat = {}, createSocket } = {}) {
   const chatApi = fakeChatApi({
     listConversations: vi.fn(async () => ({
       conversations: [publicRoom, privateWithBob],
@@ -47,7 +48,12 @@ function renderChat({ route = '/', chat = {} } = {}) {
     ),
     ...chat,
   })
-  return renderApp({ route, authApi: signedIn(), chatApi })
+  return renderApp({
+    route,
+    authApi: signedIn(),
+    chatApi,
+    ...(createSocket && { createSocket }),
+  })
 }
 
 const conversationNav = () =>
@@ -255,6 +261,8 @@ describe('conversation history', () => {
     renderChat({
       route: `/conversations/${privateWithBob.id}`,
       chat: { listMessages },
+      // Scripted REST pages: keep the socket down (no post-join refetch).
+      createSocket: fakeSocketFactory({ autoConnect: false }),
     })
 
     fireEvent.click(
@@ -285,6 +293,8 @@ describe('conversation history', () => {
     renderChat({
       route: `/conversations/${privateWithBob.id}`,
       chat: { listMessages },
+      // Manual REST refresh with the socket down (no post-join refetch).
+      createSocket: fakeSocketFactory({ autoConnect: false }),
     })
     await screen.findByText('message 1')
     const main = screen.getByRole('region', { name: 'Bob Example' })
@@ -327,11 +337,14 @@ describe('conversation history', () => {
   })
 })
 
+// With the socket down the composer falls back to REST (Phase 3); these
+// Phase 2 tests exercise exactly that path.
 describe('sending messages over REST', () => {
   function sendSetup(sendMessage) {
     renderChat({
       route: `/conversations/${privateWithBob.id}`,
       chat: { sendMessage },
+      createSocket: fakeSocketFactory({ autoConnect: false }),
     })
   }
 

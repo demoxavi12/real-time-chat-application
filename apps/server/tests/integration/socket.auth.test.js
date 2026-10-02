@@ -54,8 +54,13 @@ describe('Socket.IO handshake authentication', () => {
     expect(serverSocket.data.auth).toEqual({
       userId: user.id,
       sessionId: expect.any(String),
+      // Sockets are disconnected when the session reaches its absolute end.
+      sessionExpiresAt: expect.any(Date),
       name: user.name,
     })
+    expect(serverSocket.data.auth.sessionExpiresAt.getTime()).toBeGreaterThan(
+      Date.now(),
+    )
   })
 
   it('ignores identity claimed in handshake auth/query (forged sender)', async () => {

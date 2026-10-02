@@ -145,6 +145,20 @@ const envShape = {
     .int('must be an integer')
     .positive('must be positive')
     .default(10),
+  // Socket.IO abuse protection (all counted per window).
+  SOCKET_RATE_LIMIT_WINDOW_MS: positiveInt(10_000),
+  SOCKET_MESSAGE_RATE_LIMIT: positiveInt(30),
+  SOCKET_EVENT_RATE_LIMIT: positiveInt(120),
+  SOCKET_INVALID_EVENT_LIMIT: positiveInt(20),
+  SOCKET_CONNECTION_RATE_LIMIT: positiveInt(30),
+}
+
+function positiveInt(fallback) {
+  return z.coerce
+    .number({ error: 'must be a number' })
+    .int('must be an integer')
+    .positive('must be positive')
+    .default(fallback)
 }
 
 function cookieSecure(env) {
@@ -242,6 +256,15 @@ export function loadConfig(env = process.env) {
         windowMs: parsed.AUTH_RATE_LIMIT_WINDOW_MS,
         max: parsed.AUTH_RATE_LIMIT_MAX,
       }),
+    }),
+    socket: Object.freeze({
+      windowMs: parsed.SOCKET_RATE_LIMIT_WINDOW_MS,
+      // per socket and window
+      messageLimit: parsed.SOCKET_MESSAGE_RATE_LIMIT,
+      eventLimit: parsed.SOCKET_EVENT_RATE_LIMIT,
+      invalidEventLimit: parsed.SOCKET_INVALID_EVENT_LIMIT,
+      // per client IP and window
+      connectionLimit: parsed.SOCKET_CONNECTION_RATE_LIMIT,
     }),
   })
 }

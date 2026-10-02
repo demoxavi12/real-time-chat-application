@@ -1,4 +1,5 @@
 import { DuplicateClientMessageError } from '../repositories/message.repository.js'
+import { AppError, ErrorCodes } from '../utils/AppError.js'
 import { messageCursor, toPage } from './pagination.js'
 
 export function toPublicMessage(message, senderName) {
@@ -54,6 +55,29 @@ export function createMessageService({ messages, conversations, users }) {
       await conversations.recordMessage(conversation._id, message.createdAt)
       const [presented] = await present([message])
       return { message: presented, created: true }
+    },
+
+    /**
+     * Read state (docs/06 message:read). Recorded for private conversations
+     * only: in the public room every reader would be appended to every
+     * message's readBy, an unbounded array (see ADR-030).
+     */
+    async markRead({ conversation, messageId, userId }) {
+      if (conversation.type !== 'private')
+        return { recorded: false, changed: false }
+      const changed = await messages.addReader({
+        conversationId: conversation._id,
+        messageId,
+        userId,
+      })
+      if (changed === null) {
+        throw new AppError(
+          404,
+          ErrorCodes.MESSAGE_NOT_FOUND,
+          'Message not found',
+        )
+      }
+      return { recorded: true, changed }
     },
 
     /**

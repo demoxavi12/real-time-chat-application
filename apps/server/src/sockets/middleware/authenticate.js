@@ -10,7 +10,7 @@ function handshakeError(code, message) {
  * Handshake authentication: the same session cookie and the same
  * authService.authenticate() as REST. Identity is taken only from the
  * verified token; anything in `socket.handshake.auth`/query is ignored.
- * On success `socket.data.auth = { userId, sessionId, name }`.
+ * On success `socket.data.auth = { userId, sessionId, sessionExpiresAt, name }`.
  */
 export function createSocketAuthMiddleware({
   authService,
@@ -29,10 +29,12 @@ export function createSocketAuthMiddleware({
       return
     }
     try {
-      const { user, claims } = await authService.authenticate(token)
+      const { user, claims, sessionExpiresAt } =
+        await authService.authenticate(token)
       socket.data.auth = {
         userId: String(user._id),
         sessionId: claims.sessionId,
+        sessionExpiresAt,
         name: user.name,
       }
       next()

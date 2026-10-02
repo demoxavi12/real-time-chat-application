@@ -25,7 +25,8 @@ async function sendMessage(page, text) {
   await expect(page.getByLabel('Message', { exact: true })).toHaveValue('')
 }
 
-test.describe('conversations and messages (REST, no live updates yet)', () => {
+// Phase 2 durable flows (REST). Live delivery is covered by realtime.spec.js.
+test.describe('conversations and messages (durable REST flows)', () => {
   test('two users discover each other, chat privately, and a third user is kept out', async ({
     browser,
   }) => {
@@ -69,7 +70,7 @@ test.describe('conversations and messages (REST, no live updates yet)', () => {
         await b.context.close()
       }
 
-      // Alice sees the reply after refreshing (live delivery is Phase 3)...
+      // Alice also gets the reply via an explicit Refresh (REST resync)...
       await a.page
         .getByRole('region', { name: bob.name })
         .getByRole('button', { name: 'Refresh' })

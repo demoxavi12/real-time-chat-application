@@ -1,7 +1,7 @@
 import { toPublicUser } from '../models/user.model.js'
 import { sendSuccess } from '../utils/response.js'
 
-export function createAuthController({ authService, authCookie }) {
+export function createAuthController({ authService, authCookie, realtime }) {
   return {
     async register(req, res) {
       const session = await authService.register(req.validated.body)
@@ -19,9 +19,15 @@ export function createAuthController({ authService, authCookie }) {
       sendSuccess(res, { user: toPublicUser(req.auth.user) })
     },
 
-    /** Idempotent: revokes the session if one is presented, always clears. */
+    /**
+     * Idempotent: revokes the session if one is presented (and disconnects
+     * its live sockets), always clears the cookie.
+     */
     async logout(req, res) {
-      await authService.logout(authCookie.read(req.headers.cookie))
+      const sessionId = await authService.logout(
+        authCookie.read(req.headers.cookie),
+      )
+      realtime.sessionRevoked(sessionId)
       authCookie.clear(res)
       sendSuccess(res, { loggedOut: true })
     },

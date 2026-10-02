@@ -76,3 +76,12 @@ export function unusedChat() {
     userDirectory: stub,
   }
 }
+
+/** Realtime hub stub for app-level tests (records calls, emits nothing). */
+export function unusedRealtime() {
+  return {
+    sessionRevoked: () => {},
+    messageCreated: async () => {},
+    conversationCreated: async () => {},
+  }
+}

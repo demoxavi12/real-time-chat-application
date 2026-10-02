@@ -183,6 +183,9 @@ ignored, and `Authorization: Bearer` is not accepted.
 
 ### POST /api/auth/logout
 
+Since Phase 3 logout also disconnects every live Socket.IO connection of
+that session.
+
 Idempotent. If a valid session cookie is presented, that session is revoked
 server-side (every token of the session, including renewed ones, stops working
 immediately); the cookie is always cleared. Other sessions of the same user
@@ -328,6 +331,11 @@ Requires access to the conversation.
   other-conversation cursors → `400 INVALID_CURSOR`.
 
 ### POST /api/conversations/:conversationId/messages
+
+Since Phase 3 a stored message is also delivered live (`message:new` to the
+conversation room, `conversation:update` to participants) exactly as for the
+Socket.IO `message:send`; a newly created private conversation is announced
+with `conversation:update`. See `06-websocket-protocol.md`.
 
 Durable send over REST (real-time delivery is Phase 3). Requires access.
 

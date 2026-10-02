@@ -133,14 +133,14 @@ Rules:
 **Implemented (Phase 2)** — `apps/server/src/models/message.model.js`,
 collection `messages`:
 
-| Field             | Type       | Notes                                                                                         |
-| ----------------- | ---------- | --------------------------------------------------------------------------------------------- |
-| `conversationId`  | ObjectId   | Authorized conversation                                                                       |
-| `senderId`        | ObjectId   | Always the authenticated user                                                                 |
-| `clientMessageId` | String?    | Optional idempotency key from the client                                                      |
-| `content`         | String     | Plain text, 1–2000 characters (validated + trimmed)                                           |
-| `readBy`          | ObjectId[] | Read-state foundation: contains the sender on creation; updating it (message:read) is Phase 3 |
-| `createdAt`       | Date       | Server time only (no `updatedAt`: messages are immutable)                                     |
+| Field             | Type       | Notes                                                                                                           |
+| ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------- |
+| `conversationId`  | ObjectId   | Authorized conversation                                                                                         |
+| `senderId`        | ObjectId   | Always the authenticated user                                                                                   |
+| `clientMessageId` | String?    | Optional idempotency key from the client                                                                        |
+| `content`         | String     | Plain text, 1–2000 characters (validated + trimmed)                                                             |
+| `readBy`          | ObjectId[] | Read state: the sender on creation; `message:read` adds readers (`$addToSet`) in **private** conversations only |
+| `createdAt`       | Date       | Server time only (no `updatedAt`: messages are immutable)                                                       |
 
 - Indexes:
   - `conversation_history`: `{ conversationId: 1, createdAt: -1, _id: -1 }` —
@@ -149,8 +149,9 @@ collection `messages`:
   - `client_message_id_unique`: `{ conversationId: 1, senderId: 1, clientMessageId: 1 }`
     unique, partial on `clientMessageId` being a string — retry dedup.
   - No `{ senderId, createdAt }` index: no query needs it yet.
-- `readBy` would grow with every reader of the public room; Phase 3 should
-  revisit per-user read markers before using it for unread counts there.
+- Reads are recorded only in private conversations (at most two entries);
+  in the public room `readBy` would grow with every reader, so public reads
+  are not stored (ADR-030). `readBy` is not part of the REST message shape.
 
 Recommended indexes:
 

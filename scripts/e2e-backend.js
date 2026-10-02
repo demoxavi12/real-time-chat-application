@@ -26,13 +26,16 @@ try {
     PORT: port,
     MONGODB_URI: mongo.getUri('realtime_chat_e2e'),
     CLIENT_ORIGIN: clientOrigin,
-    LOG_LEVEL: 'info',
+    LOG_LEVEL: process.env.E2E_LOG_LEVEL ?? 'info',
     // Fresh signing key per run: nothing secret is stored anywhere.
     JWT_SECRET: randomBytes(48).toString('hex'),
-    // Every E2E user signs up from 127.0.0.1; rate limiting itself is covered
-    // by the server integration tests.
+    // Every E2E user and socket comes from 127.0.0.1; rate limiting itself is
+    // covered by the server integration tests.
     RATE_LIMIT_MAX: '10000',
     AUTH_RATE_LIMIT_MAX: '10000',
+    SOCKET_CONNECTION_RATE_LIMIT: '10000',
+    SOCKET_EVENT_RATE_LIMIT: '10000',
+    SOCKET_MESSAGE_RATE_LIMIT: '10000',
   })
   server = await startServer({
     config,

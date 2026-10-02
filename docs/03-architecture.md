@@ -168,8 +168,12 @@ policies/         conversationAccess (authorize() policy: loads the
                   conversation for req.auth or 404)
 routes/ controllers/   health, auth, users and conversations routers ->
                   controllers -> services
-sockets/          createSocketServer (Origin check), bindEvent, handlers/ and
-                  middleware/ (handshake authentication) registries
+sockets/          createSocketServer (Origin check, per-socket limits, user/
+                  session rooms, session-end timer), bindEvent (acks, errors,
+                  rate limits), rooms (room names), realtime (notification hub
+                  shared with REST), presence (in-memory), handlers/chat
+                  (join/leave, message:send, message:read, typing, presence),
+                  middleware/ (connection rate limit, handshake auth)
 validators/       parseWithSchema (shared by HTTP and Socket.IO), auth,
                   common (ids, limits, cursors) and conversation/message schemas
 utils/            AppError + error codes, response envelope, JSON logger with
@@ -206,7 +210,10 @@ features/auth/       AuthProvider + useAuth (status: loading | authenticated |
                      unauthenticated | error), LoginPage, RegisterPage,
                      RequireAuth / GuestOnly route guards, validation
 features/system/     SystemStatus + useSystemStatus (backend health/readiness)
-features/chat/       useConversations, useMessages, ConversationList,
+features/realtime/   RealtimeProvider (one socket, one listener per event,
+                     room refcounts, rejoin + REST resync on reconnect, auth
+                     loss), useRealtime / useRealtimeEvent
+features/chat/       useConversations, useMessages, useTypingAndReads, ConversationList,
                      UserSearch, ConversationView, MessageComposer (REST)
 pages/HomePage.jsx   protected chat shell (account bar, conversation list,
                      user search, <Outlet> for the selected conversation)
@@ -217,9 +224,20 @@ App.jsx              routes: / and /conversations/:id (protected, nested),
 ```
 
 The session is restored on load with `GET /api/auth/me`; the token is an
-HttpOnly cookie the client never sees. Conversations and messages use REST
-only; new messages from others appear after Refresh or reload. The socket
-client is created but not connected until Phase 3.
+HttpOnly cookie the client never sees. Durable state (lists, history) comes
+from REST; live updates (messages, conversation activity, typing, read
+receipts, presence) come over one Socket.IO connection that sends messages
+with acknowledgements and falls back to REST while disconnected.
+
+### Real-time flow
+
+```text
+client message:send ─► validate ─► authorize ─► messageService.send ─► MongoDB
+                                                      │ success only
+                          ack to sender ◄─────────────┤
+            message:new to conversation room ◄────────┤ (realtime hub, also
+  conversation:update to participants ◄───────────────┘  used by REST sends)
+```
 
 ### Logging
 

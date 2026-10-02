@@ -2,12 +2,13 @@
 
 ## Status
 
-| Phase                                   | State                                                                                                                                                      |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 — Foundation                          | **Done** (commit `cce0410`)                                                                                                                                |
-| 1 — Backend foundation + authentication | **Done**: auth API, User model, sessions, frontend auth UI, Socket.IO handshake auth, tests (see below)                                                    |
-| 2 — Conversation/message domain         | **Done**: models + indexes, users directory, public room, private conversations, REST messages, cursor history, authorization, minimal REST chat UI, tests |
-| 3–7                                     | Not started                                                                                                                                                |
+| Phase                                   | State                                                                                                                                                                                                                     |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 — Foundation                          | **Done** (commit `cce0410`)                                                                                                                                                                                               |
+| 1 — Backend foundation + authentication | **Done**: auth API, User model, sessions, frontend auth UI, Socket.IO handshake auth, tests (see below)                                                                                                                   |
+| 2 — Conversation/message domain         | **Done**: models + indexes, users directory, public room, private conversations, REST messages, cursor history, authorization, minimal REST chat UI, tests                                                                |
+| 3 — Socket.IO                           | **Done**: authenticated sockets, room authorization, message:send/ack/broadcast with dedup, conversation updates, presence, typing, read state, revocation, rate limits, reconnect/resync, frontend realtime layer, tests |
+| 4–7                                     | Not started                                                                                                                                                                                                               |
 
 ## Phase 0 — Foundation
 
@@ -78,6 +79,10 @@ receipts remain Phase 3.
 - Reconnection/resync.
 
 **Gate:** Socket.IO integration suite passes.
+
+**Delivered:** see `06-websocket-protocol.md` (implemented contract). The
+frontend real-time layer (live messages, typing, receipts, presence,
+connection state, reconnect resync) was pulled forward from Phase 4.
 
 ## Phase 4 — Frontend
 

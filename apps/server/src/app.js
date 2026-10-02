@@ -19,10 +19,10 @@ export const JSON_BODY_LIMIT = '100kb'
  * side effects, so it can be tested with injected dependencies.
  *
  * `auth` = { authService, authCookie, authenticate } and
- * `chat` = { conversationService, messageService, userDirectory }
- * (composed in server.js).
+ * `chat` = { conversationService, messageService, userDirectory } and
+ * `realtime` = the Socket.IO notification hub (composed in server.js).
  */
-export function createApp({ config, logger, readiness, auth, chat }) {
+export function createApp({ config, logger, readiness, auth, chat, realtime }) {
   const app = express()
   app.disable('x-powered-by')
 
@@ -43,12 +43,16 @@ export function createApp({ config, logger, readiness, auth, chat }) {
   api.use(createRateLimiter(config.rateLimit))
   api.use(
     '/auth',
-    createAuthRouter({ ...auth, rateLimit: config.auth.rateLimit }),
+    createAuthRouter({ ...auth, rateLimit: config.auth.rateLimit, realtime }),
   )
   // Protected routers: authenticate first; resource routes then apply
   // authorize(policy) per route (see conversation.routes.js).
   api.use('/users', auth.authenticate, createUserRouter(chat))
-  api.use('/conversations', auth.authenticate, createConversationRouter(chat))
+  api.use(
+    '/conversations',
+    auth.authenticate,
+    createConversationRouter({ ...chat, realtime }),
+  )
   app.use('/api', api)
 
   app.use(notFound)

@@ -16,10 +16,12 @@ import {
 export function createConversationRouter({
   conversationService,
   messageService,
+  realtime,
 }) {
   const controller = createConversationController({
     conversationService,
     messageService,
+    realtime,
   })
   const canAccess = authorize(conversationAccess(conversationService))
   const params = validate({ params: conversationParamsSchema })

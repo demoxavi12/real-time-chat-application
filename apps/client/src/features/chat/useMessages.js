@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useRealtime, useRealtimeEvent } from '../realtime/realtimeContext.js'
 import { mergeMessages } from './chatModel.js'
 
 const PAGE_SIZE = 30
 const NOT_FOUND_CODES = new Set(['CONVERSATION_NOT_FOUND', 'VALIDATION_ERROR'])
 
 /**
- * One conversation and its history. Mount it with `key={conversationId}` so
- * switching conversations starts from a clean state.
+ * One conversation: durable history from REST, then live updates from
+ * Socket.IO. Mount it with `key={conversationId}` so switching conversations
+ * starts from a clean state.
+ *
+ * Every source (REST page, ack, message:new, refetch after reconnect) is
+ * merged by message id and re-sorted by (createdAt, id), so duplicate or
+ * out-of-order events can never produce duplicate or misplaced messages.
  */
 export function useMessages(chatApi, conversationId) {
+  const { joinConversation } = useRealtime()
   const [state, setState] = useState({
     status: 'loading',
     conversation: null,
@@ -29,7 +36,6 @@ export function useMessages(chatApi, conversationId) {
         setState((s) => ({
           status: 'ready',
           conversation,
-          // Keep anything already shown (refresh merges the latest page).
           messages: mergeMessages(s.messages, page.messages),
           nextCursor: s.messages.length ? s.nextCursor : page.nextCursor,
           error: null,
@@ -46,8 +52,27 @@ export function useMessages(chatApi, conversationId) {
     return () => controller.abort()
   }, [chatApi, conversationId, attempt])
 
-  /** Re-fetches the latest page (no live updates until Phase 3). */
+  // Live delivery for this conversation while the view is mounted.
+  useEffect(
+    () => joinConversation(conversationId),
+    [joinConversation, conversationId],
+  )
+
+  const addMessage = useCallback((message) => {
+    setState((s) => ({ ...s, messages: mergeMessages(s.messages, [message]) }))
+  }, [])
+
+  useRealtimeEvent('message:new', ({ message }) => {
+    if (message?.conversationId === conversationId) addMessage(message)
+  })
+
+  /** Re-fetches the latest page and merges it (also after reconnects). */
   const refresh = useCallback(() => setAttempt((n) => n + 1), [])
+  useRealtimeEvent('resync', refresh)
+  // Close the gap between the initial REST fetch and the completed join.
+  useRealtimeEvent('joined', (joinedId) => {
+    if (joinedId === conversationId) refresh()
+  })
 
   const loadOlder = useCallback(async () => {
     const page = await chatApi.listMessages(conversationId, {
@@ -60,10 +85,6 @@ export function useMessages(chatApi, conversationId) {
       nextCursor: page.nextCursor,
     }))
   }, [chatApi, conversationId, state.nextCursor])
-
-  const addMessage = useCallback((message) => {
-    setState((s) => ({ ...s, messages: mergeMessages(s.messages, [message]) }))
-  }, [])
 
   return { ...state, refresh, loadOlder, addMessage }
 }

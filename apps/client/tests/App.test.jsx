@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router'
 import RealApp from '../src/App.jsx'
 import { ApiError } from '../src/services/api/httpClient.js'
+import { fakeSocketFactory } from './fakeSocket.js'
 import { fakeAuthApi, fakeChatApi } from './helpers.jsx'
 
 // Phase 0 status-page tests. Since Phase 1 the status page is the public
@@ -10,7 +11,12 @@ import { fakeAuthApi, fakeChatApi } from './helpers.jsx'
 function App(props) {
   return (
     <MemoryRouter initialEntries={['/status']}>
-      <RealApp authApi={fakeAuthApi()} chatApi={fakeChatApi()} {...props} />
+      <RealApp
+        authApi={fakeAuthApi()}
+        chatApi={fakeChatApi()}
+        createSocket={fakeSocketFactory()}
+        {...props}
+      />
     </MemoryRouter>
   )
 }

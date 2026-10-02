@@ -7,6 +7,7 @@ import {
   ConversationView,
   NoConversationSelected,
 } from './features/chat/ConversationView.jsx'
+import { RealtimeProvider } from './features/realtime/RealtimeProvider.jsx'
 import { SystemStatus } from './features/system/SystemStatus.jsx'
 import { HomePage } from './pages/HomePage.jsx'
 import {
@@ -14,6 +15,7 @@ import {
   chatApi as defaultChatApi,
   systemApi as defaultSystemApi,
 } from './services/api/index.js'
+import { createAppSocket } from './services/socket/index.js'
 
 /**
  * Routes: `/` and `/conversations/:conversationId` (protected chat shell),
@@ -25,42 +27,45 @@ function App({
   systemApi = defaultSystemApi,
   authApi = defaultAuthApi,
   chatApi = defaultChatApi,
+  createSocket = createAppSocket,
 }) {
   return (
     <AuthProvider authApi={authApi}>
-      <main className="app">
-        <header>
-          <h1>
-            <Link to="/" className="brand">
-              Real-Time Chat
-            </Link>
-          </h1>
-          <p className="subtitle">
-            Messages are saved instantly. Live delivery is not implemented yet —
-            use Refresh to see new messages.
-          </p>
-        </header>
-        <Routes>
-          <Route element={<RequireAuth />}>
-            <Route path="/" element={<HomePage chatApi={chatApi} />}>
-              <Route index element={<NoConversationSelected />} />
-              <Route
-                path="conversations/:conversationId"
-                element={<ConversationView />}
-              />
+      <RealtimeProvider createSocket={createSocket}>
+        <main className="app">
+          <header>
+            <h1>
+              <Link to="/" className="brand">
+                Real-Time Chat
+              </Link>
+            </h1>
+            <p className="subtitle">
+              Real-time chat. File sharing and notifications are not implemented
+              yet.
+            </p>
+          </header>
+          <Routes>
+            <Route element={<RequireAuth />}>
+              <Route path="/" element={<HomePage chatApi={chatApi} />}>
+                <Route index element={<NoConversationSelected />} />
+                <Route
+                  path="conversations/:conversationId"
+                  element={<ConversationView />}
+                />
+              </Route>
             </Route>
-          </Route>
-          <Route element={<GuestOnly />}>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-          </Route>
-          <Route
-            path="/status"
-            element={<SystemStatus systemApi={systemApi} />}
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
+            <Route element={<GuestOnly />}>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+            </Route>
+            <Route
+              path="/status"
+              element={<SystemStatus systemApi={systemApi} />}
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </RealtimeProvider>
     </AuthProvider>
   )
 }

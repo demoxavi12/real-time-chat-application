@@ -1,9 +1,13 @@
 import { sendSuccess } from '../utils/response.js'
 
-/** Identity is always `req.auth.userId`; conversations come from the policy. */
+/**
+ * Identity is always `req.auth.userId`; conversations come from the policy.
+ * Real-time notifications run only after the durable write succeeded.
+ */
 export function createConversationController({
   conversationService,
   messageService,
+  realtime,
 }) {
   return {
     async list(req, res) {
@@ -20,6 +24,7 @@ export function createConversationController({
         req.validated.body.userId,
       )
       const [presented] = await conversationService.present([conversation])
+      if (created) await realtime.conversationCreated(conversation)
       sendSuccess(res, { conversation: presented }, created ? 201 : 200)
     },
 
@@ -42,6 +47,12 @@ export function createConversationController({
         senderId: req.auth.userId,
         ...req.validated.body,
       })
+      if (created) {
+        await realtime.messageCreated({
+          conversation: req.conversation,
+          message,
+        })
+      }
       sendSuccess(res, { message }, created ? 201 : 200)
     },
   }

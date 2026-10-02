@@ -3,6 +3,7 @@ import { MemoryRouter, useLocation } from 'react-router'
 import { vi } from 'vitest'
 import App from '../src/App.jsx'
 import { ApiError } from '../src/services/api/httpClient.js'
+import { fakeSocketFactory } from './fakeSocket.js'
 
 export const alice = Object.freeze({
   id: '65f000000000000000000001',
@@ -81,12 +82,18 @@ export function renderApp({
   authApi = fakeAuthApi(),
   systemApi = healthySystemApi(),
   chatApi = fakeChatApi(),
+  createSocket = fakeSocketFactory(),
 } = {}) {
   const utils = render(
     <MemoryRouter initialEntries={[state ? { pathname: route, state } : route]}>
-      <App authApi={authApi} systemApi={systemApi} chatApi={chatApi} />
+      <App
+        authApi={authApi}
+        systemApi={systemApi}
+        chatApi={chatApi}
+        createSocket={createSocket}
+      />
       <LocationProbe />
     </MemoryRouter>,
   )
-  return { ...utils, authApi, systemApi, chatApi }
+  return { ...utils, authApi, systemApi, chatApi, createSocket }
 }

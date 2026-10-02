@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useRealtimeEvent } from '../realtime/realtimeContext.js'
 import { sortConversations } from './chatModel.js'
 
 const PAGE_SIZE = 50
 
-/** The signed-in user's conversation list (REST; refreshed on demand). */
+/**
+ * The signed-in user's conversation list: loaded over REST, kept current by
+ * `conversation:update` events, and silently refetched after a reconnect.
+ */
 export function useConversations(chatApi) {
   const [state, setState] = useState({
     status: 'loading',
@@ -80,6 +84,14 @@ export function useConversations(chatApi) {
       ),
     }))
   }, [])
+
+  useRealtimeEvent('conversation:update', ({ conversation }) => {
+    if (conversation?.id) upsert(conversation)
+  })
+
+  // After a reconnect: refetch quietly (keep showing the current list).
+  const sync = useCallback(() => setAttempt((n) => n + 1), [])
+  useRealtimeEvent('resync', sync)
 
   return { ...state, reload, loadMore, upsert, recordMessage }
 }

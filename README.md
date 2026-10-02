@@ -3,15 +3,25 @@
 A full-stack real-time messaging platform built with React, Node.js,
 Express.js, MongoDB, Socket.IO and JWT.
 
-> **Status: Phase 2 — conversations and messages (REST) complete.** Users can
-> register, find each other, open private conversations, use the public room,
-> and send and read persistent messages with paginated history. **Messages are
-> not delivered in real time yet**: others' new messages appear after Refresh
-> or reload. Presence, typing indicators and read receipts are not implemented
-> yet (Phase 3). See the [roadmap](#roadmap).
+> **Status: Phase 3 — real-time messaging complete.** Users can register,
+> find each other, chat privately or in the public room, and see messages,
+> typing, read receipts and presence live over Socket.IO, with MongoDB as the
+> durable source of truth. Not implemented yet: file sharing, notifications,
+> deployment. See the [roadmap](#roadmap).
 
 ## What exists today
 
+- **Real-time messaging** (Phase 3, Socket.IO)
+  - authenticated sockets (same HttpOnly session as REST); logout and session
+    end disconnect live sockets
+  - `conversation:join`/`leave` with server-side authorization
+  - `message:send` persisted **before** acknowledgement and `message:new`
+    broadcast to the conversation room; retries deduplicated by
+    `clientMessageId` (shared with REST); failed writes broadcast nothing
+  - live conversation list (`conversation:update`), typing indicators, read
+    receipts (private conversations), online/offline presence
+  - multiple tabs/devices per user; automatic reconnect with room rejoin and
+    REST resync; per-IP and per-socket rate limits
 - **Conversations and messages** (Phase 2, REST)
   - `GET /api/users`: directory and search (name prefix or exact email), returns
     only id and name, cursor-paginated
@@ -40,7 +50,7 @@ Express.js, MongoDB, Socket.IO and JWT.
     comes from the verified session, never from request data
   - CSRF defence (SameSite + Origin check), stricter rate limits on login and
     registration
-  - Socket.IO handshake authentication with the same session (no chat events)
+  - Socket.IO handshake authentication with the same session
   - login, registration and protected app shell in the React client
 - **Backend** (`apps/server`): Express 5 + Socket.IO 4 + Mongoose 9
   - validated environment configuration that fails fast with clear messages
@@ -50,7 +60,7 @@ Express.js, MongoDB, Socket.IO and JWT.
   - standard `{ success, data | error }` envelope, centralized error handling
     (no stack traces or internal messages in responses), zod request validation
   - Socket.IO server with authenticated handshakes, a handler registry,
-    centralized event error handling and graceful shutdown — **no chat events yet**
+    centralized event error handling and graceful shutdown
   - structured JSON logging with automatic redaction of secrets
 - **Frontend** (`apps/client`): React 19 + Vite 8 + React Router
   - validated `VITE_*` configuration (defaults to same-origin)
@@ -121,6 +131,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `AUTH_COOKIE_SAMESITE`      | server  | no       | `lax`                       |
 | `AUTH_RATE_LIMIT_WINDOW_MS` | server  | no       | `900000`                    |
 | `AUTH_RATE_LIMIT_MAX`       | server  | no       | `10`                        |
+| `SOCKET_*` (5 limits)       | server  | no       | see `.env.example`          |
 | `VITE_API_URL`              | client  | no       | `/api` (same origin)        |
 | `VITE_SOCKET_URL`           | client  | no       | same origin                 |
 
@@ -182,8 +193,8 @@ Other scripts: `npm run lint`, `npm run format`, `npm run format:check`,
   health and readiness, authentication, users, conversations, messages, error
   envelope and error codes)
 - Socket.IO contract: [docs/06-websocket-protocol.md](docs/06-websocket-protocol.md)
-  (implemented today: authenticated connection lifecycle and conventions; chat
-  events are Phase 3)
+  (implemented: authenticated connections, room authorization, all documented
+  events, acknowledgements, rate limits, reconnect behaviour)
 - Security design: [docs/07-auth-security.md](docs/07-auth-security.md)
   (the "Implementation" section describes the auth model, cookie threat model
   and known limitations)
@@ -197,7 +208,7 @@ From [docs/11-implementation-plan.md](docs/11-implementation-plan.md):
 - [x] **Phase 0** — Foundation: workspace, tooling, config, database and Socket.IO boundaries, health/readiness, tests, CI, `npm run verify`
 - [x] **Phase 1** — Authentication: user model, registration/login, JWT cookie sessions with revocation, auth UI, protected routes, Socket.IO handshake auth
 - [x] **Phase 2** — Conversations and messages: models and indexes, user directory, public room, private conversations, REST messaging, cursor pagination, authorization, minimal REST chat UI
-- [ ] **Phase 3** — Socket.IO: messaging, presence, typing, read state, reconnection
+- [x] **Phase 3** — Real-time messaging: authenticated sockets, room authorization, persisted-then-broadcast messages with acks and dedup, live conversation list, typing, read receipts, presence, reconnect/resync, revocation, rate limits
 - [ ] **Phase 4** — Frontend chat UI
 - [ ] **Phase 5** — E2E coverage of chat flows
 - [ ] **Phase 6** — Hardening

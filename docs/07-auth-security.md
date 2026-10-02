@@ -119,6 +119,22 @@ Auth flows log nothing else; the logger additionally redacts keys such as
 asserts that passwords, tokens, the signing secret and user emails never
 appear in log output.
 
+### Real-time security (Phase 3)
+
+- Sockets authenticate with the same cookie/service as REST; logout
+  disconnects the session's sockets and every socket is closed at the
+  session's absolute end, so a revoked or expired session cannot keep a
+  connection.
+- Every room/event is authorized server-side with the REST access rule;
+  client-supplied identity or "authorized" flags are rejected by strict
+  schemas. Private messages go only to the conversation room and private
+  conversation metadata only to its participants' user rooms.
+- Messages are persisted before any broadcast; failures broadcast nothing.
+- Abuse limits: connection attempts per IP, events and sends per socket,
+  disconnect after floods of invalid/unknown events, 100 KB packet cap.
+- Socket logs contain socket ids and event names only — never message
+  content, cookies or tokens.
+
 ### Known limitations
 
 - Sessions are revoked one at a time; there is no "sign out all devices" or
@@ -126,6 +142,8 @@ appear in log output.
 - No account lockout beyond IP rate limiting (deliberately, to avoid
   lockout-based denial of service).
 - Email addresses are not verified.
+- A socket whose user account is deleted while connected stays connected
+  until it disconnects (new handshakes are refused).
 
 ## Authentication
 

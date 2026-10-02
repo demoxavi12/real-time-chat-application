@@ -13,8 +13,11 @@ import { createMessageService } from './services/message.service.js'
 import { createReadinessService } from './services/readiness.service.js'
 import { createTokenService } from './services/token.service.js'
 import { createUserDirectoryService } from './services/userDirectory.service.js'
+import { createDefaultHandlers } from './sockets/handlers/index.js'
 import { createSocketServer } from './sockets/index.js'
 import { createDefaultMiddlewares } from './sockets/middleware/index.js'
+import { createPresenceTracker } from './sockets/presence.js'
+import { createRealtimeHub } from './sockets/realtime.js'
 import { createAuthCookie } from './utils/authCookie.js'
 
 function listen(server, port) {
@@ -49,6 +52,7 @@ function createChat({ models }) {
   const users = createUserRepository(models)
   const conversations = createConversationRepository(models)
   return {
+    users,
     conversationService: createConversationService({ conversations, users }),
     messageService: createMessageService({
       messages: createMessageRepository(models),
@@ -82,15 +86,31 @@ export async function startServer({ config, logger, socket = {} }) {
 
   const auth = createAuth({ config, models })
   const readiness = createReadinessService({ database: () => database.ping() })
-  const app = createApp({ config, logger, readiness, auth, chat })
+  const realtime = createRealtimeHub({
+    conversationService: chat.conversationService,
+    logger,
+  })
+  const presence = createPresenceTracker()
+  const app = createApp({ config, logger, readiness, auth, chat, realtime })
   const httpServer = http.createServer(app)
   const io = createSocketServer(httpServer, {
     config,
     logger,
     middlewares:
-      socket.middlewares ?? createDefaultMiddlewares({ ...auth, logger }),
-    handlers: socket.handlers,
+      socket.middlewares ??
+      createDefaultMiddlewares({ ...auth, logger, limits: config.socket }),
+    handlers:
+      socket.handlers ??
+      createDefaultHandlers({
+        conversationService: chat.conversationService,
+        messageService: chat.messageService,
+        users: chat.users,
+        realtime,
+        presence,
+        logger,
+      }),
   })
+  realtime.attach(io)
 
   try {
     await listen(httpServer, config.port)
@@ -118,6 +138,7 @@ export async function startServer({ config, logger, socket = {} }) {
     io,
     database,
     models,
+    presence,
     port: httpServer.address().port,
     close,
   }

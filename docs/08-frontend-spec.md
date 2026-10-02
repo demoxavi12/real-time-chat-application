@@ -119,5 +119,37 @@ App (AuthProvider, routes)
   retry) and not-found (inaccessible conversation) states are all rendered.
 - Message content is rendered as React text (escaped, `white-space: pre-wrap`),
   never as HTML.
-- Not implemented yet: typing indicator, presence, read state, live updates,
-  reconnection UI.
+
+### Real-time layer (Phase 3)
+
+- `RealtimeProvider` (inside `AuthProvider`) owns one Socket.IO connection
+  while signed in; it registers exactly one socket listener per server
+  event and fans events out to subscribers (`useRealtimeEvent`), so
+  re-renders and remounts never accumulate listeners (tested).
+- Provider actions (`joinConversation`, `sendMessage`, `startTyping`, `stopTyping`,
+  `markRead`) are stable callbacks, so effects that depend on them do not re-run
+  when presence or connection state changes (a regression test covers a
+  previous bug where any presence change sent a spurious `typing:stop`).
+- Conversation views join their room on mount and leave on unmount
+  (reference-counted). After every reconnect the provider rejoins rooms and
+  emits a local `resync`; lists and history refetch over REST.
+- A server-side disconnect (logout elsewhere/session end) or an auth
+  handshake error re-checks the session, which routes to the login page.
+- Sending: `message:send` with an acknowledgement when connected, REST when
+  not; the draft is kept on failure and retries reuse the same
+  `clientMessageId`. No optimistic placeholder messages (correctness first):
+  the canonical message from the ack/REST response is rendered.
+- Incoming `message:new`, acks, REST pages and post-reconnect refetches are
+  merged by message id and ordered by (createdAt, id): duplicates and
+  out-of-order events never duplicate or misplace messages.
+- `conversation:update` upserts and re-sorts the conversation list.
+- Typing: the composer sends `typing:start` once per burst and
+  `typing:stop` after 3 s idle, on clearing or on send; "<name> is typing…"
+  expires after 6 s without updates.
+- Read receipts (private conversations): the newest incoming message is
+  reported once via `message:read`; "Seen" appears under my latest message
+  when the other participant has read it (live, during the session).
+- Presence: initial `presence:list` + `presence:update`; "Online"/"Offline"
+  in the conversation header and "(online)" in the list.
+- Connection indicator in the account bar: Live / Connecting… /
+  Reconnecting… / Offline.

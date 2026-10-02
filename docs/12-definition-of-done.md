@@ -37,6 +37,14 @@ A task is DONE only when all applicable conditions are true.
 - [ ] Sensitive data excluded from logs/responses.
 - [ ] CORS/security configuration reviewed.
 
+### Real-time checks (from Phase 3)
+
+- [ ] New socket events are registered through `on()` (validation, acks, rate limits) and authorize with the same service rule as REST.
+- [ ] Durable events persist before anything is emitted; tests prove failures emit nothing.
+- [ ] Emits target a room (`conversation:`, `user:`, `session:` via `sockets/rooms.js`); no `io.emit` for private data.
+- [ ] Client code subscribes through `useRealtimeEvent` (no direct `socket.on` in components) and tests check listener counts.
+- [ ] Real-time tests wait on events/barriers or UI state, never on fixed sleeps.
+
 ### Conversation/message checks (from Phase 2)
 
 - [ ] Every `/conversations/:id/...` route applies `authorize(conversationAccess(...))`; handlers use `req.conversation`, never a client-supplied conversation or user id.

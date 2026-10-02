@@ -1,10 +1,11 @@
+import { createChatHandlers } from './chat.handlers.js'
+
 /**
  * Socket event handler modules. Each module is a function receiving
- * `{ io, socket, logger, on }` for one connected socket, where
- * `on(event, handler)` binds an event with validation-friendly centralized
- * error handling (see ../bindEvent.js).
- *
- * No events are registered in Phase 0. Chat events defined in
- * docs/06-websocket-protocol.md are added here as separate modules from Phase 3.
+ * `{ io, socket, logger, on }` for one connected, authenticated socket, where
+ * `on(event, handler, options)` binds an event with validation-friendly
+ * centralized error handling and rate limiting (see ../bindEvent.js).
  */
-export const defaultHandlers = []
+export function createDefaultHandlers(deps) {
+  return [createChatHandlers(deps)]
+}

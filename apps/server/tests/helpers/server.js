@@ -12,8 +12,9 @@ import {
 
 /**
  * Starts a real server on an isolated database of the run's ephemeral
- * MongoDB. Auth rate limits are relaxed unless a test overrides them, so
- * suites that create many users are not throttled.
+ * MongoDB. Auth and Socket.IO rate limits are relaxed unless a test overrides
+ * them (all test traffic comes from 127.0.0.1); the limits themselves are
+ * tested with explicit low values.
  */
 export async function startTestServer(env = {}) {
   const { logger, lines } = createMemoryLogger('debug')
@@ -21,6 +22,10 @@ export async function startTestServer(env = {}) {
     config: testConfig({
       MONGODB_URI: withDatabase(inject('mongoUri'), uniqueDbName('auth')),
       AUTH_RATE_LIMIT_MAX: '1000',
+      SOCKET_CONNECTION_RATE_LIMIT: '10000',
+      SOCKET_EVENT_RATE_LIMIT: '10000',
+      SOCKET_MESSAGE_RATE_LIMIT: '10000',
+      SOCKET_INVALID_EVENT_LIMIT: '10000',
       ...env,
     }),
     logger,

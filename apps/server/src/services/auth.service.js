@@ -64,7 +64,7 @@ export function createAuthService({ users, revokedSessions, tokens }) {
     },
 
     /**
-     * Resolves a token to `{ user, claims, renewal }`. Rejects tokens that are
+     * Resolves a token to `{ user, claims, renewal, sessionExpiresAt }`. Rejects tokens that are
      * forged, expired, revoked, or whose user no longer exists.
      */
     async authenticate(token) {
@@ -75,23 +75,32 @@ export function createAuthService({ users, revokedSessions, tokens }) {
       ])
       if (!user || revoked) throw invalidAuthentication()
       const renewal = await tokens.renew(claims)
-      return { user, claims, renewal }
+      return {
+        user,
+        claims,
+        renewal,
+        sessionExpiresAt: tokens.sessionExpiresAt(claims),
+      }
     },
 
-    /** Revokes the session behind `token` if it is valid; otherwise no-op. */
+    /**
+     * Revokes the session behind `token` if it is valid; otherwise no-op.
+     * Returns the revoked session id (or null) so live sockets can be closed.
+     */
     async logout(token) {
-      if (!token) return
+      if (!token) return null
       let claims
       try {
         claims = await tokens.verify(token)
       } catch (error) {
-        if (error instanceof AppError) return
+        if (error instanceof AppError) return null
         throw error
       }
       await revokedSessions.revoke(
         claims.sessionId,
         tokens.sessionExpiresAt(claims),
       )
+      return claims.sessionId
     },
   }
 }

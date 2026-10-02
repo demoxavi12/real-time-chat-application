@@ -1,8 +1,12 @@
 import { NavLink } from 'react-router'
+import { useRealtime } from '../realtime/realtimeContext.js'
 import { conversationTitle, describeChatError } from './chatModel.js'
 
 export function ConversationList({ list, currentUserId }) {
   const { status, conversations, nextCursor, error, reload, loadMore } = list
+  const { isOnline } = useRealtime()
+  const otherId = (conversation) =>
+    conversation.participants.find((p) => p.id !== currentUserId)?.id
 
   return (
     <nav className="conversation-list" aria-labelledby="conversations-heading">
@@ -36,6 +40,10 @@ export function ConversationList({ list, currentUserId }) {
                   {conversation.type === 'public' ? 'Public' : 'Private'}
                 </span>{' '}
                 {conversationTitle(conversation, currentUserId)}
+                {conversation.type === 'private' &&
+                  isOnline(otherId(conversation)) && (
+                    <span className="online-badge"> (online)</span>
+                  )}
               </NavLink>
             </li>
           ))}

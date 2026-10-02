@@ -34,6 +34,20 @@ export function createMessageRepository({ Message }) {
     },
 
     /**
+     * Atomically adds `userId` to the message's readBy set. Returns null if
+     * the message does not exist in this conversation, otherwise whether the
+     * set changed (false for a repeated read).
+     */
+    async addReader({ conversationId, messageId, userId }) {
+      const result = await Message.updateOne(
+        { _id: messageId, conversationId },
+        { $addToSet: { readBy: userId } },
+      ).exec()
+      if (result.matchedCount === 0) return null
+      return result.modifiedCount === 1
+    },
+
+    /**
      * One page of a conversation's history, newest first, strictly older
      * than `before` = { at, id } in (createdAt, _id) order. Uses the
      * conversation_history index; `limit` is always bounded by the caller.

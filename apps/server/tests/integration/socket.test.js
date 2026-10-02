@@ -114,11 +114,11 @@ describe('Socket.IO connection lifecycle', () => {
     expect(client.active).toBe(true)
   })
 
-  it('does not register any application events in Phase 0', async () => {
-    const { url } = await boot({ handlers: undefined })
+  it('never answers events that no handler registered', async () => {
+    const { url } = await boot()
     const client = connect(url)
     await once(client, 'connect')
-    const reply = client.timeout(300).emitWithAck('message:send', {})
+    const reply = client.timeout(300).emitWithAck('no:such:event', {})
     await expect(reply).rejects.toThrow('operation has timed out')
   })
 })
